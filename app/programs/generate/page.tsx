@@ -1,11 +1,10 @@
 import { Suspense } from "react"
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { ProgramGeneratorForm } from "@/components/programs/program-generator-form"
 
 export default async function GenerateProgramPage() {
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { signUp } from "@/lib/actions"
-import { Dumbbell, Loader2 } from "lucide-react"
+import { Dumbbell, Loader2, ArrowLeft } from "lucide-react"
 
 export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -26,8 +26,17 @@ export default function SignUpForm() {
   return (
     <Card className="w-full max-w-md bg-slate-800/50 border-slate-700">
       <CardHeader className="text-center">
-        <div className="flex justify-center mb-4">
-          <Dumbbell className="h-12 w-12 text-theme-primary" />
+        <div className="flex items-center justify-between mb-4">
+          <Link href="/auth/login">
+            <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+          <div className="flex-1 flex justify-center">
+            <Dumbbell className="h-12 w-12 text-theme-primary" />
+          </div>
+          <div className="w-16" /> {/* Spacer for centering */}
         </div>
         <CardTitle className="text-2xl font-bold text-white">Join FitTracker</CardTitle>
         <CardDescription className="text-slate-300">Create your account to start your fitness journey</CardDescription>

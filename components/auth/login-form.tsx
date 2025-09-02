@@ -8,16 +8,30 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { signIn } from "@/lib/actions"
 import { Dumbbell, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)
     try {
-      await signIn(formData)
+      const result = await signIn(formData)
+      if (result && !result.success) {
+        toast({
+          title: "Login Failed",
+          description: result.error || "Invalid email or password. Please try again.",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       console.error("Login error:", error)
+      toast({
+        title: "Login Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }

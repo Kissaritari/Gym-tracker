@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import "./globals.css"
 import { ThemeProvider } from "@/lib/theme-context"
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: "v0 App",
@@ -28,7 +29,10 @@ html {
         `}</style>
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )
