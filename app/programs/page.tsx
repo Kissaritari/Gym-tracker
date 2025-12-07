@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
+import { sql } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,33 +11,25 @@ import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { DeleteProgramButton } from "@/components/programs/delete-program-button"
 
 export default async function ProgramsPage() {
-  const supabase = createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSession()
 
   if (!user) {
     redirect("/auth/login")
   }
 
-  // Fetch all public programs and user's own programs
-  const { data: allPrograms } = await supabase
-    .from("workout_plans")
-    .select(`
-      *,
-      workout_plan_exercises (
-        id,
-        exercise_id,
-        day_number
-      )
-    `)
-    .or(`is_public.eq.true,created_by.eq.${user.id}`)
-    .order("created_at", { ascending: false })
+  // Fetch all public programs and user's own programs using Neon SQL
+  const allPrograms = await sql`
+    SELECT wp.*, 
+      (SELECT COUNT(*) FROM workout_plan_exercises wpe WHERE wpe.workout_plan_id = wp.id) as exercise_count,
+      (SELECT COUNT(DISTINCT day_number) FROM workout_plan_exercises wpe WHERE wpe.workout_plan_id = wp.id) as day_count
+    FROM workout_plans wp
+    WHERE wp.is_public = true OR wp.created_by = ${user.id}
+    ORDER BY wp.created_at DESC
+  `
 
   // Separate public and user programs
-  const publicPrograms = allPrograms?.filter((p) => p.is_public && p.created_by !== user.id) || []
-  const userPrograms = allPrograms?.filter((p) => p.created_by === user.id) || []
+  const publicPrograms = allPrograms?.filter((p: any) => p.is_public && p.created_by !== user.id) || []
+  const userPrograms = allPrograms?.filter((p: any) => p.created_by === user.id) || []
 
   const getDifficultyColor = (level: string) => {
     switch (level) {
@@ -49,15 +42,6 @@ export default async function ProgramsPage() {
       default:
         return "bg-gray-500"
     }
-  }
-
-  const getExerciseCount = (program: any) => {
-    return program.workout_plan_exercises?.length || 0
-  }
-
-  const getDayCount = (program: any) => {
-    const days = new Set(program.workout_plan_exercises?.map((ex: any) => ex.day_number) || [])
-    return days.size
   }
 
   return (
@@ -129,9 +113,8 @@ export default async function ProgramsPage() {
           </div>
 
           {userPrograms.length > 0 ? (
-            /* Changed grid to be mobile-first: single column on mobile, 2 on tablet, 3 on desktop */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {userPrograms.map((program) => (
+              {userPrograms.map((program: any) => (
                 <Card key={program.id} className="bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3 sm:pb-6">
                     <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
@@ -159,8 +142,8 @@ export default async function ProgramsPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs sm:text-sm text-slate-300">
                         <span>{program.duration_weeks} weeks</span>
-                        <span>{getDayCount(program)} days</span>
-                        <span>{getExerciseCount(program)} exercises</span>
+                        <span>{program.day_count} days</span>
+                        <span>{program.exercise_count} exercises</span>
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -232,7 +215,7 @@ export default async function ProgramsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {publicPrograms.map((program) => (
+            {publicPrograms.map((program: any) => (
               <Card key={program.id} className="bg-slate-800/50 border-slate-700">
                 <CardHeader className="pb-3 sm:pb-6">
                   <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
@@ -256,8 +239,8 @@ export default async function ProgramsPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-xs sm:text-sm text-slate-300">
                       <span>{program.duration_weeks} weeks</span>
-                      <span>{getDayCount(program)} days</span>
-                      <span>{getExerciseCount(program)} exercises</span>
+                      <span>{program.day_count} days</span>
+                      <span>{program.exercise_count} exercises</span>
                     </div>
 
                     <Button asChild className="w-full bg-theme-primary hover:bg-theme-secondary text-white text-sm">

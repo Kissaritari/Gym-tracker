@@ -1,14 +1,11 @@
-import { createClient } from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import LoginForm from "@/components/auth/login-form"
 
 export default async function LoginPage() {
-  const supabase = createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const user = await getSession()
 
-  if (session) {
+  if (user) {
     redirect("/dashboard")
   }
 

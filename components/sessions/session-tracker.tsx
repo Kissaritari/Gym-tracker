@@ -8,32 +8,11 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, CheckCircle, Clock, Calendar, TrendingUp, Activity, Target, Timer, BarChart3 } from "lucide-react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
+import { fetchSessions, fetchSessionStats } from "@/lib/actions"
 import { formatDistanceToNow, format } from "date-fns"
 
 interface SessionTrackerProps {
   userId: string
-}
-
-interface WorkoutSession {
-  id: string
-  workout_plan_id: string
-  started_at: string
-  completed_at: string | null
-  notes: string | null
-  workout_plan: {
-    name: string
-    difficulty_level: string
-  }
-  exercise_logs: Array<{
-    id: string
-    exercise: {
-      name: string
-    }
-    sets_completed: number
-    reps_completed: number[]
-    weight_used: number[]
-  }>
 }
 
 interface SessionStats {
@@ -46,62 +25,23 @@ interface SessionStats {
 }
 
 export function SessionTracker({ userId }: SessionTrackerProps) {
-  const [activeSessions, setActiveSessions] = useState<WorkoutSession[]>([])
-  const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([])
+  const [activeSessions, setActiveSessions] = useState<any[]>([])
+  const [recentSessions, setRecentSessions] = useState<any[]>([])
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
-
   useEffect(() => {
-    fetchSessions()
-    fetchSessionStats()
+    loadSessions()
+    loadSessionStats()
   }, [userId])
 
-  const fetchSessions = async () => {
+  const loadSessions = async () => {
     try {
-      // Fetch active sessions (not completed)
-      const { data: activeData, error: activeError } = await supabase
-        .from("workout_sessions")
-        .select(`
-          *,
-          workout_plan:workout_plans(name, difficulty_level),
-          exercise_logs(
-            id,
-            exercise:exercises(name),
-            sets_completed,
-            reps_completed,
-            weight_used
-          )
-        `)
-        .eq("user_id", userId)
-        .is("completed_at", null)
-        .order("started_at", { ascending: false })
-
-      if (activeError) throw activeError
-      setActiveSessions(activeData || [])
-
-      // Fetch recent completed sessions
-      const { data: recentData, error: recentError } = await supabase
-        .from("workout_sessions")
-        .select(`
-          *,
-          workout_plan:workout_plans(name, difficulty_level),
-          exercise_logs(
-            id,
-            exercise:exercises(name),
-            sets_completed,
-            reps_completed,
-            weight_used
-          )
-        `)
-        .eq("user_id", userId)
-        .not("completed_at", "is", null)
-        .order("completed_at", { ascending: false })
-        .limit(10)
-
-      if (recentError) throw recentError
-      setRecentSessions(recentData || [])
+      const result = await fetchSessions()
+      if (result.success) {
+        setActiveSessions(result.activeSessions || [])
+        setRecentSessions(result.recentSessions || [])
+      }
     } catch (error) {
       console.error("Error fetching sessions:", error)
     } finally {
@@ -109,76 +49,18 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
     }
   }
 
-  const fetchSessionStats = async () => {
+  const loadSessionStats = async () => {
     try {
-      const { data: sessions, error } = await supabase
-        .from("workout_sessions")
-        .select("started_at, completed_at")
-        .eq("user_id", userId)
-
-      if (error) throw error
-
-      const totalSessions = sessions.length
-      const completedSessions = sessions.filter((s) => s.completed_at).length
-
-      // Calculate total workout time
-      const completedSessionsWithTime = sessions.filter((s) => s.completed_at && s.started_at)
-      const totalWorkoutTime = completedSessionsWithTime.reduce((total, session) => {
-        const start = new Date(session.started_at)
-        const end = new Date(session.completed_at!)
-        return total + (end.getTime() - start.getTime())
-      }, 0)
-
-      const averageSessionTime =
-        completedSessionsWithTime.length > 0 ? totalWorkoutTime / completedSessionsWithTime.length : 0
-
-      // Calculate current streak
-      const sortedSessions = sessions
-        .filter((s) => s.completed_at)
-        .sort((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime())
-
-      let currentStreak = 0
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      for (const session of sortedSessions) {
-        const sessionDate = new Date(session.completed_at!)
-        sessionDate.setHours(0, 0, 0, 0)
-
-        const daysDiff = Math.floor((today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24))
-
-        if (daysDiff <= currentStreak + 1) {
-          currentStreak++
-        } else {
-          break
-        }
+      const result = await fetchSessionStats()
+      if (result.success && result.stats) {
+        setSessionStats(result.stats)
       }
-
-      // Calculate this week's sessions
-      const weekStart = new Date()
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-      weekStart.setHours(0, 0, 0, 0)
-
-      const thisWeekSessions = sessions.filter((s) => {
-        const sessionDate = new Date(s.started_at)
-        return sessionDate >= weekStart
-      }).length
-
-      setSessionStats({
-        totalSessions,
-        completedSessions,
-        totalWorkoutTime,
-        averageSessionTime,
-        currentStreak,
-        thisWeekSessions,
-      })
     } catch (error) {
       console.error("Error fetching session stats:", error)
     }
   }
 
   const resumeSession = async (sessionId: string) => {
-    // Navigate to the workout session
     const session = activeSessions.find((s) => s.id === sessionId)
     if (session) {
       window.location.href = `/workout/${session.workout_plan_id}?sessionId=${sessionId}`
@@ -196,7 +78,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
     return `${remainingMinutes}m`
   }
 
-  const getSessionDuration = (session: WorkoutSession) => {
+  const getSessionDuration = (session: any) => {
     const start = new Date(session.started_at)
     const end = session.completed_at ? new Date(session.completed_at) : new Date()
     return end.getTime() - start.getTime()
@@ -303,11 +185,9 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        {session.workout_plan.name}
-                        <Badge
-                          className={`${getDifficultyColor(session.workout_plan.difficulty_level)} text-white text-xs`}
-                        >
-                          {session.workout_plan.difficulty_level}
+                        {session.plan_name}
+                        <Badge className={`${getDifficultyColor(session.difficulty_level)} text-white text-xs`}>
+                          {session.difficulty_level}
                         </Badge>
                       </CardTitle>
                       <CardDescription>Started {formatDistanceToNow(new Date(session.started_at))} ago</CardDescription>
@@ -355,11 +235,9 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        {session.workout_plan.name}
-                        <Badge
-                          className={`${getDifficultyColor(session.workout_plan.difficulty_level)} text-white text-xs`}
-                        >
-                          {session.workout_plan.difficulty_level}
+                        {session.plan_name}
+                        <Badge className={`${getDifficultyColor(session.difficulty_level)} text-white text-xs`}>
+                          {session.difficulty_level}
                         </Badge>
                       </CardTitle>
                       <CardDescription>

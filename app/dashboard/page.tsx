@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
+import { sql } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,33 +10,28 @@ import Link from "next/link"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 export default async function DashboardPage() {
-  const supabase = createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSession()
 
   if (!user) {
     redirect("/auth/login")
   }
 
-  // Fetch workout plans
-  const { data: workoutPlans } = await supabase
-    .from("workout_plans")
-    .select("*")
-    .eq("is_public", true)
-    .order("difficulty_level")
+  // Fetch workout plans using Neon SQL
+  const workoutPlans = await sql`
+    SELECT * FROM workout_plans 
+    WHERE is_public = true 
+    ORDER BY difficulty_level
+  `
 
   // Fetch recent workout sessions
-  const { data: recentSessions } = await supabase
-    .from("workout_sessions")
-    .select(`
-      *,
-      workout_plans (name, difficulty_level)
-    `)
-    .eq("user_id", user.id)
-    .order("started_at", { ascending: false })
-    .limit(3)
+  const recentSessions = await sql`
+    SELECT ws.*, wp.name as plan_name, wp.difficulty_level 
+    FROM workout_sessions ws
+    LEFT JOIN workout_plans wp ON ws.workout_plan_id = wp.id
+    WHERE ws.user_id = ${user.id}
+    ORDER BY ws.started_at DESC
+    LIMIT 3
+  `
 
   const getDifficultyColor = (level: string) => {
     switch (level) {
@@ -110,7 +106,7 @@ export default async function DashboardPage() {
           <div className="lg:col-span-2">
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Workout Plans</h2>
             <div className="grid gap-4 sm:gap-6">
-              {workoutPlans?.map((plan) => (
+              {workoutPlans?.map((plan: any) => (
                 <Card key={plan.id} className="bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3 sm:pb-6">
                     <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
@@ -151,17 +147,17 @@ export default async function DashboardPage() {
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Recent Activity</h2>
             <div className="space-y-4">
               {recentSessions?.length ? (
-                recentSessions.map((session) => (
+                recentSessions.map((session: any) => (
                   <Card key={session.id} className="bg-slate-800/50 border-slate-700">
                     <CardContent className="p-3 sm:p-4">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
                         <h3 className="font-semibold text-white text-sm sm:text-base flex-1 min-w-0">
-                          {session.workout_plans?.name}
+                          {session.plan_name}
                         </h3>
                         <Badge
-                          className={`${getDifficultyColor(session.workout_plans?.difficulty_level)} text-white text-xs flex-shrink-0`}
+                          className={`${getDifficultyColor(session.difficulty_level)} text-white text-xs flex-shrink-0`}
                         >
-                          {session.workout_plans?.difficulty_level}
+                          {session.difficulty_level}
                         </Badge>
                       </div>
                       <p className="text-xs sm:text-sm text-slate-300">

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Save } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createProgram, updateProgram } from "@/lib/actions"
 
 interface Exercise {
   id: string
@@ -40,7 +40,6 @@ interface ProgramFormProps {
 
 export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps) {
   const router = useRouter()
-  const supabase = createClient()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -84,7 +83,6 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
     const updated = [...programExercises]
     updated[index] = { ...updated[index], [field]: value }
 
-    // Update order when day changes
     if (field === "dayNumber") {
       const dayExercises = updated.filter((ex) => ex.dayNumber === value)
       updated[index].orderInDay = dayExercises.length
@@ -99,53 +97,27 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
 
     setIsSubmitting(true)
     try {
-      // Create or update workout plan
-      const planData = {
+      const data = {
         name: formData.name,
         description: formData.description,
-        difficulty_level: formData.difficultyLevel,
-        duration_weeks: formData.durationWeeks,
-        is_public: formData.isPublic,
-        created_by: userId,
+        difficultyLevel: formData.difficultyLevel,
+        durationWeeks: formData.durationWeeks,
+        isPublic: formData.isPublic,
+        exercises: programExercises,
       }
 
-      let planId: string
-
+      let result
       if (initialData?.id) {
-        // Update existing plan
-        const { error } = await supabase.from("workout_plans").update(planData).eq("id", initialData.id)
-
-        if (error) throw error
-        planId = initialData.id
-
-        // Delete existing exercises
-        await supabase.from("workout_plan_exercises").delete().eq("workout_plan_id", planId)
+        result = await updateProgram(initialData.id, data)
       } else {
-        // Create new plan
-        const { data, error } = await supabase.from("workout_plans").insert(planData).select().single()
-
-        if (error) throw error
-        planId = data.id
+        result = await createProgram(data)
       }
 
-      // Insert exercises
-      if (programExercises.length > 0) {
-        const exerciseData = programExercises.map((ex) => ({
-          workout_plan_id: planId,
-          exercise_id: ex.exerciseId,
-          day_number: ex.dayNumber,
-          sets: ex.sets,
-          reps: ex.reps,
-          rest_seconds: ex.restSeconds,
-          order_in_day: ex.orderInDay,
-        }))
-
-        const { error } = await supabase.from("workout_plan_exercises").insert(exerciseData)
-
-        if (error) throw error
+      if (result.success) {
+        router.push("/programs")
+      } else {
+        console.error("Error saving program:", result.error)
       }
-
-      router.push("/programs")
     } catch (error) {
       console.error("Error saving program:", error)
     } finally {
@@ -276,7 +248,7 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
                   <h3 className="text-lg font-semibold text-white border-b border-slate-600 pb-2">Day {day}</h3>
                   {programExercises
                     .filter((ex) => ex.dayNumber === day)
-                    .map((exercise, index) => {
+                    .map((exercise) => {
                       const globalIndex = programExercises.findIndex((ex) => ex === exercise)
                       const exerciseData = getExerciseById(exercise.exerciseId)
 
@@ -302,7 +274,7 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
                               </Select>
                               {exerciseData && (
                                 <div className="flex flex-wrap gap-1 mt-2">
-                                  {exerciseData.muscle_groups.map((muscle) => (
+                                  {exerciseData.muscle_groups?.map((muscle) => (
                                     <Badge
                                       key={muscle}
                                       variant="outline"

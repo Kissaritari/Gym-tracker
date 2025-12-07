@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Play, CheckCircle, Info } from "lucide-react"
 import Link from "next/link"
 import ExerciseTracker from "./exercise-tracker"
-import { createClient } from "@/lib/supabase/client"
+import { startWorkoutSession, endWorkoutSession } from "@/lib/actions"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 interface WorkoutSessionProps {
@@ -28,7 +28,6 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
 
-  const supabase = createClient()
   const days = Object.keys(exercisesByDay).sort((a, b) => Number.parseInt(a) - Number.parseInt(b))
   const currentDayExercises = exercisesByDay[currentDay] || []
   const totalExercises = currentDayExercises.length
@@ -37,7 +36,6 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
   ).length
   const progress = totalExercises > 0 ? (completedCount / totalExercises) * 100 : 0
 
-  // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout
     if (isSessionActive && sessionStartTime) {
@@ -56,21 +54,14 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
 
   const startSession = async () => {
     try {
-      const { data, error } = await supabase
-        .from("workout_sessions")
-        .insert({
-          user_id: userId,
-          workout_plan_id: workoutPlan.id,
-          started_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      setSessionId(data.id)
-      setIsSessionActive(true)
-      setSessionStartTime(new Date())
+      const result = await startWorkoutSession(workoutPlan.id)
+      if (result.success && result.sessionId) {
+        setSessionId(result.sessionId)
+        setIsSessionActive(true)
+        setSessionStartTime(new Date())
+      } else {
+        console.error("Error starting session:", result.error)
+      }
     } catch (error) {
       console.error("Error starting session:", error)
     }
@@ -80,18 +71,14 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
     if (!sessionId) return
 
     try {
-      const { error } = await supabase
-        .from("workout_sessions")
-        .update({
-          completed_at: new Date().toISOString(),
-          notes: `Completed ${completedCount}/${totalExercises} exercises`,
-        })
-        .eq("id", sessionId)
-
-      if (error) throw error
-
-      setIsSessionActive(false)
-      router.push("/dashboard")
+      const notes = `Completed ${completedCount}/${totalExercises} exercises`
+      const result = await endWorkoutSession(sessionId, notes)
+      if (result.success) {
+        setIsSessionActive(false)
+        router.push("/dashboard")
+      } else {
+        console.error("Error ending session:", result.error)
+      }
     } catch (error) {
       console.error("Error ending session:", error)
     }

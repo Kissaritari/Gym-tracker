@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Plus, Minus, Timer } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { logExercise } from "@/lib/actions"
 
 interface ExerciseTrackerProps {
   exercise: any
@@ -25,16 +25,12 @@ export default function ExerciseTracker({
   isCompleted,
 }: ExerciseTrackerProps) {
   const [sets, setSets] = useState<Array<{ reps: number; weight: number }>>([])
-  const [currentSet, setCurrentSet] = useState(0)
   const [isLogging, setIsLogging] = useState(false)
   const [restTimer, setRestTimer] = useState(0)
   const [isResting, setIsResting] = useState(false)
 
-  const supabase = createClient()
-
   const addSet = () => {
     setSets([...sets, { reps: 0, weight: 0 }])
-    setCurrentSet(sets.length)
   }
 
   const updateSet = (index: number, field: "reps" | "weight", value: number) => {
@@ -59,23 +55,25 @@ export default function ExerciseTracker({
     }, 1000)
   }
 
-  const logExercise = async () => {
+  const handleLogExercise = async () => {
     if (sets.length === 0 || isCompleted) return
 
     setIsLogging(true)
     try {
-      const { error } = await supabase.from("exercise_logs").insert({
-        session_id: sessionId,
-        exercise_id: exercise.id,
-        sets_completed: sets.length,
-        reps_completed: sets.map((s) => s.reps),
-        weight_used: sets.map((s) => s.weight),
+      const result = await logExercise({
+        sessionId,
+        exerciseId: exercise.id,
+        setsCompleted: sets.length,
+        repsCompleted: sets.map((s) => s.reps),
+        weightUsed: sets.map((s) => s.weight),
         notes: `Completed ${sets.length} sets`,
       })
 
-      if (error) throw error
-
-      onComplete()
+      if (result.success) {
+        onComplete()
+      } else {
+        console.error("Error logging exercise:", result.error)
+      }
     } catch (error) {
       console.error("Error logging exercise:", error)
     } finally {
@@ -198,7 +196,7 @@ export default function ExerciseTracker({
         {/* Complete Exercise Button */}
         {sets.length > 0 && (
           <Button
-            onClick={logExercise}
+            onClick={handleLogExercise}
             disabled={isLogging}
             className="w-full bg-theme-primary hover:bg-theme-secondary text-white"
           >

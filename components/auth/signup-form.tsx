@@ -7,19 +7,49 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { signUp } from "@/lib/actions"
-import { Dumbbell, Loader2, ArrowLeft } from "lucide-react"
+import { Dumbbell, Loader2, ArrowLeft, AlertCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)
+    setError(null)
+
+    console.log("[v0] Signup attempt started")
+
     try {
-      await signUp(formData)
+      const result = await signUp(formData)
+      console.log("[v0] Signup result:", result)
+
+      if (result && !result.success) {
+        const errorMessage = result.error || "Failed to create account. Please try again."
+        setError(errorMessage)
+        toast({
+          title: "Signup Failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
     } catch (error) {
-      console.error("Sign up error:", error)
+      console.error("[v0] Signup error:", error)
+      // Don't show error for redirect (NEXT_REDIRECT)
+      if (error && typeof error === "object" && "digest" in error) {
+        return // This is a redirect, not an error
+      }
+      const errorMessage = "An unexpected error occurred. Please try again."
+      setError(errorMessage)
+      toast({
+        title: "Signup Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
+      console.log("[v0] Signup attempt completed")
     }
   }
 
@@ -42,6 +72,13 @@ export default function SignUpForm() {
         <CardDescription className="text-slate-300">Create your account to start your fitness journey</CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-slate-200">
@@ -53,7 +90,8 @@ export default function SignUpForm() {
               type="email"
               placeholder="your@email.com"
               required
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+              disabled={isLoading}
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 disabled:opacity-50"
             />
           </div>
           <div className="space-y-2">
@@ -65,12 +103,13 @@ export default function SignUpForm() {
               name="password"
               type="password"
               required
-              className="bg-slate-700 border-slate-600 text-white"
+              disabled={isLoading}
+              className="bg-slate-700 border-slate-600 text-white disabled:opacity-50"
             />
           </div>
           <Button
             type="submit"
-            className="w-full bg-theme-primary hover:bg-theme-secondary text-white"
+            className="w-full bg-theme-primary hover:bg-theme-secondary text-white transition-all duration-200"
             disabled={isLoading}
           >
             {isLoading ? (

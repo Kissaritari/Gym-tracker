@@ -1,14 +1,10 @@
 import { Suspense } from "react"
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { SessionTracker } from "@/components/sessions/session-tracker"
 
 export default async function SessionsPage() {
-  const supabase = createServerComponentClient({ cookies })
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSession()
 
   if (!user) {
     redirect("/auth/login")

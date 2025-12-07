@@ -3,8 +3,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { deleteProgram } from "@/lib/actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,16 +25,16 @@ interface DeleteProgramButtonProps {
 export function DeleteProgramButton({ programId, programName }: DeleteProgramButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const { error } = await supabase.from("workout_plans").delete().eq("id", programId)
-
-      if (error) throw error
-
-      router.refresh()
+      const result = await deleteProgram(programId)
+      if (result.success) {
+        router.refresh()
+      } else {
+        console.error("Error deleting program:", result.error)
+      }
     } catch (error) {
       console.error("Error deleting program:", error)
     } finally {

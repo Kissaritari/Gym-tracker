@@ -1,13 +1,10 @@
 import { Suspense } from "react"
-import { createClient } from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { ProgramGeneratorForm } from "@/components/programs/program-generator-form"
 
 export default async function GenerateProgramPage() {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSession()
 
   if (!user) {
     redirect("/auth/login")

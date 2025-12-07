@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
+import { sql } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { ProgramForm } from "@/components/programs/program-form"
 import { Button } from "@/components/ui/button"
@@ -7,18 +8,14 @@ import Link from "next/link"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 export default async function CreateProgramPage() {
-  const supabase = createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSession()
 
   if (!user) {
     redirect("/auth/login")
   }
 
-  // Fetch all exercises for the form
-  const { data: exercises } = await supabase.from("exercises").select("*").order("name")
+  // Fetch all exercises for the form using Neon SQL
+  const exercises = await sql`SELECT * FROM exercises ORDER BY name`
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">

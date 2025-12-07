@@ -1,16 +1,13 @@
-import { createClient } from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Dumbbell, Target, TrendingUp, Users } from "lucide-react"
 
 export default async function HomePage() {
-  const supabase = createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const user = await getSession()
 
-  if (session) {
+  if (user) {
     redirect("/dashboard")
   }
 
