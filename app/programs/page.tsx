@@ -49,7 +49,7 @@ export default async function ProgramsPage() {
       {/* Header */}
       <div className="border-b border-slate-700 bg-slate-800/50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
               <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white self-start">
                 <Link href="/dashboard">
@@ -131,10 +131,8 @@ export default async function ProgramsPage() {
                           {program.description}
                         </CardDescription>
                       </div>
-                      <Badge
-                        className={`${getDifficultyColor(program.difficulty_level)} text-white flex-shrink-0 text-xs`}
-                      >
-                        {program.difficulty_level}
+                      <Badge className={`${getDifficultyColor(program.difficulty)} text-white flex-shrink-0 text-xs`}>
+                        {program.difficulty}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -228,10 +226,8 @@ export default async function ProgramsPage() {
                         {program.description}
                       </CardDescription>
                     </div>
-                    <Badge
-                      className={`${getDifficultyColor(program.difficulty_level)} text-white flex-shrink-0 text-xs`}
-                    >
-                      {program.difficulty_level}
+                    <Badge className={`${getDifficultyColor(program.difficulty)} text-white flex-shrink-0 text-xs`}>
+                      {program.difficulty}
                     </Badge>
                   </div>
                 </CardHeader>

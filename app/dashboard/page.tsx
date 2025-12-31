@@ -20,12 +20,12 @@ export default async function DashboardPage() {
   const workoutPlans = await sql`
     SELECT * FROM workout_plans 
     WHERE is_public = true 
-    ORDER BY difficulty_level
+    ORDER BY difficulty
   `
 
   // Fetch recent workout sessions
   const recentSessions = await sql`
-    SELECT ws.*, wp.name as plan_name, wp.difficulty_level 
+    SELECT ws.*, wp.name as plan_name, wp.difficulty 
     FROM workout_sessions ws
     LEFT JOIN workout_plans wp ON ws.workout_plan_id = wp.id
     WHERE ws.user_id = ${user.id}
@@ -116,8 +116,8 @@ export default async function DashboardPage() {
                           {plan.description}
                         </CardDescription>
                       </div>
-                      <Badge className={`${getDifficultyColor(plan.difficulty_level)} text-white flex-shrink-0`}>
-                        {plan.difficulty_level}
+                      <Badge className={`${getDifficultyColor(plan.difficulty)} text-white flex-shrink-0`}>
+                        {plan.difficulty}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -154,10 +154,8 @@ export default async function DashboardPage() {
                         <h3 className="font-semibold text-white text-sm sm:text-base flex-1 min-w-0">
                           {session.plan_name}
                         </h3>
-                        <Badge
-                          className={`${getDifficultyColor(session.difficulty_level)} text-white text-xs flex-shrink-0`}
-                        >
-                          {session.difficulty_level}
+                        <Badge className={`${getDifficultyColor(session.difficulty)} text-white text-xs flex-shrink-0`}>
+                          {session.difficulty}
                         </Badge>
                       </div>
                       <p className="text-xs sm:text-sm text-slate-300">

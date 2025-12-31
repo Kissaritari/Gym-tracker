@@ -45,7 +45,7 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     description: initialData?.description || "",
-    difficultyLevel: initialData?.difficulty_level || "beginner",
+    difficultyLevel: initialData?.difficulty || "beginner",
     durationWeeks: initialData?.duration_weeks || 4,
     isPublic: initialData?.is_public || false,
   })

@@ -186,8 +186,8 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {session.plan_name}
-                        <Badge className={`${getDifficultyColor(session.difficulty_level)} text-white text-xs`}>
-                          {session.difficulty_level}
+                        <Badge className={`${getDifficultyColor(session.difficulty)} text-white text-xs`}>
+                          {session.difficulty}
                         </Badge>
                       </CardTitle>
                       <CardDescription>Started {formatDistanceToNow(new Date(session.started_at))} ago</CardDescription>
@@ -236,8 +236,8 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {session.plan_name}
-                        <Badge className={`${getDifficultyColor(session.difficulty_level)} text-white text-xs`}>
-                          {session.difficulty_level}
+                        <Badge className={`${getDifficultyColor(session.difficulty)} text-white text-xs`}>
+                          {session.difficulty}
                         </Badge>
                       </CardTitle>
                       <CardDescription>

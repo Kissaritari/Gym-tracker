@@ -118,8 +118,8 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
               <div>
                 <h1 className="text-2xl font-bold text-white">{workoutPlan.name}</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge className={`${getDifficultyColor(workoutPlan.difficulty_level)} text-white text-xs`}>
-                    {workoutPlan.difficulty_level}
+                  <Badge className={`${getDifficultyColor(workoutPlan.difficulty)} text-white text-xs`}>
+                    {workoutPlan.difficulty}
                   </Badge>
                   {isSessionActive && (
                     <span className="text-theme-primary font-mono text-sm">{formatTime(elapsedTime)}</span>

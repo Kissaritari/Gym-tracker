@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs"
 export interface User {
   id: string
   email: string
-  full_name: string | null
+  name: string | null
   created_at: string
 }
 
@@ -18,9 +18,6 @@ function generateSessionToken(): string {
   crypto.getRandomValues(array)
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("")
 }
-
-// Store sessions in memory (in production, use Redis or database)
-const sessions = new Map<string, { userId: string; expiresAt: number }>()
 
 export async function createUser(
   email: string,
@@ -37,11 +34,10 @@ export async function createUser(
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10)
 
-    // Create user
     const result = await sql`
-      INSERT INTO users (email, password_hash, full_name)
+      INSERT INTO users (email, password_hash, name)
       VALUES (${email}, ${passwordHash}, ${fullName || null})
-      RETURNING id, email, full_name, created_at
+      RETURNING id, email, name, created_at
     `
 
     if (result.length === 0) {
@@ -49,12 +45,6 @@ export async function createUser(
     }
 
     const user = result[0] as User
-
-    // Also create profile
-    await sql`
-      INSERT INTO profiles (id, full_name)
-      VALUES (${user.id}, ${fullName || null})
-    `
 
     return { user }
   } catch (error) {
@@ -66,7 +56,7 @@ export async function createUser(
 export async function verifyUser(email: string, password: string): Promise<{ user?: User; error?: string }> {
   try {
     const result = await sql`
-      SELECT id, email, full_name, password_hash, created_at
+      SELECT id, email, name, password_hash, created_at
       FROM users WHERE email = ${email}
     `
 
@@ -84,7 +74,7 @@ export async function verifyUser(email: string, password: string): Promise<{ use
     const user: User = {
       id: userData.id,
       email: userData.email,
-      full_name: userData.full_name,
+      name: userData.name,
       created_at: userData.created_at,
     }
 
@@ -97,17 +87,21 @@ export async function verifyUser(email: string, password: string): Promise<{ use
 
 export async function createSession(userId: string): Promise<string> {
   const token = generateSessionToken()
-  const expiresAt = Date.now() + SESSION_DURATION
+  const expiresAt = new Date(Date.now() + SESSION_DURATION)
 
-  sessions.set(token, { userId, expiresAt })
+  // Store session in database
+  await sql`
+    INSERT INTO sessions (user_id, token, expires_at)
+    VALUES (${userId}, ${token}, ${expiresAt.toISOString()})
+  `
 
   // Set cookie
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    expires: new Date(expiresAt),
+    expires: expiresAt,
     path: "/",
   })
 
@@ -116,27 +110,36 @@ export async function createSession(userId: string): Promise<string> {
 
 export async function getSession(): Promise<User | null> {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const token = cookieStore.get(SESSION_COOKIE)?.value
 
     if (!token) return null
 
-    const session = sessions.get(token)
-    if (!session) return null
+    // Get session from database
+    const sessionResult = await sql`
+      SELECT user_id, expires_at FROM sessions WHERE token = ${token}
+    `
 
-    if (Date.now() > session.expiresAt) {
-      sessions.delete(token)
+    if (sessionResult.length === 0) return null
+
+    const session = sessionResult[0]
+    const expiresAt = new Date(session.expires_at)
+
+    // Check if session has expired
+    if (Date.now() > expiresAt.getTime()) {
+      // Delete expired session
+      await sql`DELETE FROM sessions WHERE token = ${token}`
       return null
     }
 
-    // Get user from database
+    // Get user data
     const result = await sql`
-      SELECT id, email, full_name, created_at
-      FROM users WHERE id = ${session.userId}
+      SELECT id, email, name, created_at
+      FROM users WHERE id = ${session.user_id}
     `
 
     if (result.length === 0) {
-      sessions.delete(token)
+      await sql`DELETE FROM sessions WHERE token = ${token}`
       return null
     }
 
@@ -148,11 +151,11 @@ export async function getSession(): Promise<User | null> {
 }
 
 export async function destroySession(): Promise<void> {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
 
   if (token) {
-    sessions.delete(token)
+    await sql`DELETE FROM sessions WHERE token = ${token}`
   }
 
   cookieStore.delete(SESSION_COOKIE)

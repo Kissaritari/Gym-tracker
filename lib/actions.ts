@@ -104,7 +104,7 @@ export async function createProgram(data: {
 
   try {
     const result = await sql`
-      INSERT INTO workout_plans (name, description, difficulty_level, duration_weeks, is_public, created_by)
+      INSERT INTO workout_plans (name, description, difficulty, duration_weeks, is_public, user_id)
       VALUES (${data.name}, ${data.description}, ${data.difficultyLevel}, ${data.durationWeeks}, ${data.isPublic}, ${user.id})
       RETURNING id
     `
@@ -154,9 +154,9 @@ export async function updateProgram(
   try {
     await sql`
       UPDATE workout_plans 
-      SET name = ${data.name}, description = ${data.description}, difficulty_level = ${data.difficultyLevel}, 
+      SET name = ${data.name}, description = ${data.description}, difficulty = ${data.difficultyLevel}, 
           duration_weeks = ${data.durationWeeks}, is_public = ${data.isPublic}
-      WHERE id = ${planId} AND created_by = ${user.id}
+      WHERE id = ${planId} AND user_id = ${user.id}
     `
 
     // Delete existing exercises
@@ -254,7 +254,7 @@ export async function fetchSessions() {
   try {
     // Fetch active sessions
     const activeSessions = await sql`
-      SELECT ws.*, wp.name as plan_name, wp.difficulty_level
+      SELECT ws.*, wp.name as plan_name, wp.difficulty
       FROM workout_sessions ws
       LEFT JOIN workout_plans wp ON ws.workout_plan_id = wp.id
       WHERE ws.user_id = ${user.id} AND ws.completed_at IS NULL
@@ -263,7 +263,7 @@ export async function fetchSessions() {
 
     // Fetch recent completed sessions
     const recentSessions = await sql`
-      SELECT ws.*, wp.name as plan_name, wp.difficulty_level
+      SELECT ws.*, wp.name as plan_name, wp.difficulty
       FROM workout_sessions ws
       LEFT JOIN workout_plans wp ON ws.workout_plan_id = wp.id
       WHERE ws.user_id = ${user.id} AND ws.completed_at IS NOT NULL
@@ -345,7 +345,7 @@ export async function importGeneratedProgram(generatedProgram: {
 
   try {
     const planResult = await sql`
-      INSERT INTO workout_plans (name, description, difficulty_level, duration_weeks, created_by, is_public)
+      INSERT INTO workout_plans (name, description, difficulty, duration_weeks, user_id, is_public)
       VALUES (${generatedProgram.name}, ${generatedProgram.description}, ${generatedProgram.level.toLowerCase()}, ${generatedProgram.duration_weeks}, ${user.id}, false)
       RETURNING id
     `
