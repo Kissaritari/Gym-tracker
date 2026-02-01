@@ -5,12 +5,13 @@ import { notFound } from "next/navigation"
 import WorkoutSession from "@/components/workout/workout-session"
 
 interface WorkoutPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function WorkoutPage({ params }: WorkoutPageProps) {
+  const { id } = await params
   const user = await getSession()
 
   if (!user) {
@@ -19,7 +20,7 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
 
   // Fetch workout plan using Neon SQL
   const workoutPlans = await sql`
-    SELECT * FROM workout_plans WHERE id = ${params.id}
+    SELECT * FROM workout_plans WHERE id = ${id}
   `
 
   if (!workoutPlans || workoutPlans.length === 0) {
@@ -30,10 +31,10 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
 
   // Fetch workout plan exercises with exercise details
   const planExercises = await sql`
-    SELECT wpe.*, e.name, e.description, e.muscle_groups, e.equipment, e.instructions, e.tips
+    SELECT wpe.*, e.name, e.description, e.muscle_group, e.equipment, e.instructions, e.tips
     FROM workout_plan_exercises wpe
     JOIN exercises e ON wpe.exercise_id = e.id
-    WHERE wpe.workout_plan_id = ${params.id}
+    WHERE wpe.workout_plan_id = ${id}
     ORDER BY wpe.day_number, wpe.order_in_day
   `
 
@@ -48,7 +49,7 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
         id: item.exercise_id,
         name: item.name,
         description: item.description,
-        muscle_groups: item.muscle_groups,
+        muscle_group: item.muscle_group,
         equipment: item.equipment,
         instructions: item.instructions,
         tips: item.tips,
