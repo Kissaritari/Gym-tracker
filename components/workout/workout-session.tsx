@@ -103,45 +103,48 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 overflow-x-hidden">
       {/* Header */}
       <div className="border-b border-slate-700 bg-slate-800/50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white">
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+              <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white w-fit">
                 <Link href="/dashboard">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
+                  <ArrowLeft className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="hidden sm:inline">Back to Dashboard</span>
+                  <span className="sm:hidden">Back</span>
                 </Link>
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-white">{workoutPlan.name}</h1>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold text-white truncate">{workoutPlan.name}</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge className={`${getDifficultyColor(workoutPlan.difficulty)} text-white text-xs`}>
+                  <Badge className={`${getDifficultyColor(workoutPlan.difficulty)} text-white text-xs flex-shrink-0`}>
                     {workoutPlan.difficulty}
                   </Badge>
                   {isSessionActive && (
-                    <span className="text-theme-primary font-mono text-sm">{formatTime(elapsedTime)}</span>
+                    <span className="text-theme-primary font-mono text-sm flex-shrink-0">{formatTime(elapsedTime)}</span>
                   )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <ThemeToggle />
               {!isSessionActive ? (
-                <Button onClick={startSession} className="bg-theme-primary hover:bg-theme-secondary text-white">
-                  <Play className="h-4 w-4 mr-2" />
-                  Start Workout
+                <Button onClick={startSession} className="bg-theme-primary hover:bg-theme-secondary text-white text-sm">
+                  <Play className="h-4 w-4 sm:mr-2 flex-shrink-0" />
+                  <span className="hidden sm:inline">Start Workout</span>
+                  <span className="sm:hidden">Start</span>
                 </Button>
               ) : (
                 <Button
                   onClick={endSession}
                   variant="outline"
-                  className="border-slate-600 text-slate-200 hover:bg-slate-700 bg-transparent"
+                  className="border-slate-600 text-slate-200 hover:bg-slate-700 bg-transparent text-sm"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  End Workout
+                  <CheckCircle className="h-4 w-4 sm:mr-2 flex-shrink-0" />
+                  <span className="hidden sm:inline">End Workout</span>
+                  <span className="sm:hidden">End</span>
                 </Button>
               )}
             </div>
@@ -149,7 +152,7 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 overflow-x-hidden">
         {/* Progress */}
         {isSessionActive && (
           <Card className="bg-slate-800/50 border-slate-700 mb-6">
@@ -172,13 +175,13 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
         )}
 
         {/* Day Selection */}
-        <Tabs value={currentDay} onValueChange={setCurrentDay} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800 mb-6">
+        <Tabs value={currentDay} onValueChange={setCurrentDay} className="w-full overflow-hidden">
+          <TabsList className={`grid w-full bg-slate-800 mb-4 sm:mb-6 ${days.length <= 3 ? `grid-cols-${days.length}` : 'grid-cols-3'} overflow-x-auto`}>
             {days.map((day) => (
               <TabsTrigger
                 key={day}
                 value={day}
-                className="data-[state=active]:bg-theme-primary data-[state=active]:text-white"
+                className="data-[state=active]:bg-theme-primary data-[state=active]:text-white text-xs sm:text-sm whitespace-nowrap"
               >
                 Day {day}
               </TabsTrigger>
@@ -209,7 +212,7 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                         {/* Exercise Details */}
                         <div className="space-y-4">
                           <div className="grid grid-cols-2 gap-4 text-sm">
