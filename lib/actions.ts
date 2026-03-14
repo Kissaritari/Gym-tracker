@@ -73,7 +73,7 @@ export async function deleteProgram(programId: string) {
     // First delete associated workout plan exercises
     await sql`DELETE FROM workout_plan_exercises WHERE workout_plan_id = ${programId}`
     // Then delete the workout plan
-    await sql`DELETE FROM workout_plans WHERE id = ${programId} AND created_by = ${user.id}`
+    await sql`DELETE FROM workout_plans WHERE id = ${programId} AND user_id = ${user.id}`
     revalidatePath("/programs")
     return { success: true }
   } catch (error) {
@@ -114,8 +114,8 @@ export async function createProgram(data: {
     if (data.exercises.length > 0) {
       for (const ex of data.exercises) {
         await sql`
-          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_in_day)
-          VALUES (${planId}, ${ex.exerciseId}, ${ex.dayNumber}, ${ex.sets}, ${ex.reps}, ${ex.restSeconds}, ${ex.orderInDay})
+          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_index)
+          VALUES (${planId}, ${exerciseId}, ${day.day_number}, ${exercise.sets}, ${exercise.reps}, ${exercise.rest_seconds}, ${i + 1})
         `
       }
     }
@@ -166,7 +166,7 @@ export async function updateProgram(
     if (data.exercises.length > 0) {
       for (const ex of data.exercises) {
         await sql`
-          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_in_day)
+          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_index)
           VALUES (${planId}, ${ex.exerciseId}, ${ex.dayNumber}, ${ex.sets}, ${ex.reps}, ${ex.restSeconds}, ${ex.orderInDay})
         `
       }
@@ -223,9 +223,9 @@ export async function endWorkoutSession(sessionId: string, notes?: string) {
 export async function logExercise(data: {
   sessionId: string
   exerciseId: string
-  setsCompleted: number
-  repsCompleted: number[]
-  weightUsed: number[]
+  setNumber: number
+  repsCompleted: number
+  weightKg: number
   notes?: string
 }) {
   const user = await getSession()
@@ -235,8 +235,8 @@ export async function logExercise(data: {
 
   try {
     await sql`
-      INSERT INTO exercise_logs (session_id, exercise_id, sets_completed, reps_completed, weight_used, notes)
-      VALUES (${data.sessionId}, ${data.exerciseId}, ${data.setsCompleted}, ${data.repsCompleted}, ${data.weightUsed}, ${data.notes || null})
+      INSERT INTO exercise_logs (workout_session_id, exercise_id, set_number, reps_completed, weight_kg, notes)
+      VALUES (${data.sessionId}, ${data.exerciseId}, ${data.setNumber}, ${data.repsCompleted}, ${data.weightKg}, ${data.notes || null})
     `
     return { success: true }
   } catch (error) {
@@ -370,16 +370,16 @@ export async function importGeneratedProgram(generatedProgram: {
           exerciseId = existingExercise[0].id
         } else {
           const newExercise = await sql`
-            INSERT INTO exercises (name, description, muscle_groups, equipment, instructions, tips)
-            VALUES (${exercise.exercise_name}, ${exercise.notes || exercise.exercise_name + " exercise"}, ARRAY[]::text[], 'Various', ${exercise.notes || ""}, ${exercise.notes || ""})
+            INSERT INTO exercises (name, description, muscle_group, equipment, instructions, tips)
+            VALUES (${exercise.exercise_name}, ${exercise.notes || exercise.exercise_name + " exercise"}, 'General', 'Various', ${exercise.notes || ""}, ${exercise.notes || ""})
             RETURNING id
           `
           exerciseId = newExercise[0].id
         }
 
         await sql`
-          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_in_day)
-          VALUES (${planId}, ${exerciseId}, ${day.day_number}, ${exercise.sets}, ${exercise.reps}, ${exercise.rest_seconds}, ${i + 1})
+          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_index)
+          VALUES (${planId}, ${ex.exerciseId}, ${ex.dayNumber}, ${ex.sets}, ${ex.reps}, ${ex.restSeconds}, ${ex.orderInDay})
         `
       }
     }

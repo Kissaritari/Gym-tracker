@@ -30,11 +30,11 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
 
   // Fetch workout plan exercises with exercise details
   const planExercises = await sql`
-    SELECT wpe.*, e.name, e.description, e.muscle_groups, e.equipment, e.instructions, e.tips
+    SELECT wpe.*, e.name, e.description, e.muscle_group, e.equipment, e.instructions, e.tips
     FROM workout_plan_exercises wpe
     JOIN exercises e ON wpe.exercise_id = e.id
     WHERE wpe.workout_plan_id = ${params.id}
-    ORDER BY wpe.day_number, wpe.order_in_day
+    ORDER BY wpe.day_number, wpe.order_index
   `
 
   // Group exercises by day
@@ -48,7 +48,7 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
         id: item.exercise_id,
         name: item.name,
         description: item.description,
-        muscle_groups: item.muscle_groups,
+        muscle_group: item.muscle_group,
         equipment: item.equipment,
         instructions: item.instructions,
         tips: item.tips,
@@ -59,7 +59,7 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
 
   // Sort exercises within each day by order
   Object.keys(exercisesByDay).forEach((day) => {
-    exercisesByDay[day].sort((a: any, b: any) => a.order_in_day - b.order_in_day)
+    exercisesByDay[day].sort((a: any, b: any) => a.order_index - b.order_index)
   })
 
   return <WorkoutSession workoutPlan={workoutPlan} exercisesByDay={exercisesByDay} userId={user.id} />

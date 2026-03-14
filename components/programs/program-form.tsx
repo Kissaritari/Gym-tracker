@@ -19,7 +19,7 @@ interface Exercise {
   id: string
   name: string
   description: string
-  muscle_groups: string[]
+  muscle_group: string
   equipment: string
 }
 
@@ -272,17 +272,14 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
                                   ))}
                                 </SelectContent>
                               </Select>
-                              {exerciseData && (
+                              {exerciseData && exerciseData.muscle_group && (
                                 <div className="flex flex-wrap gap-1 mt-2">
-                                  {exerciseData.muscle_groups?.map((muscle) => (
-                                    <Badge
-                                      key={muscle}
-                                      variant="outline"
-                                      className="text-xs border-slate-500 text-slate-300"
-                                    >
-                                      {muscle}
-                                    </Badge>
-                                  ))}
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs border-slate-500 text-slate-300"
+                                  >
+                                    {exerciseData.muscle_group}
+                                  </Badge>
                                 </div>
                               )}
                             </div>
