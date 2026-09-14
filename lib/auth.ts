@@ -99,8 +99,10 @@ export async function createSession(userId: string): Promise<string> {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    // The v0 preview runs in a cross-site iframe, so development cookies
+    // must be sent in that context. Production stays first-party secure.
+    secure: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "development",
+    sameSite: process.env.NODE_ENV === "development" ? "none" : "lax",
     expires: expiresAt,
     path: "/",
   })

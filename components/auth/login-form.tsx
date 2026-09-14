@@ -113,7 +113,10 @@ export default function LoginForm() {
             )}
           </Button>
         </form>
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-col items-center gap-3 text-center">
+          <Link href="/" className="text-sm text-slate-400 hover:text-white">
+            Back to home
+          </Link>
           <p className="text-slate-300">
             Don't have an account?{" "}
             <Link href="/auth/signup" className="text-theme-primary hover:text-theme-secondary font-medium">
