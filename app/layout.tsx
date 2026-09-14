@@ -1,39 +1,18 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/lib/theme-context"
-import { Toaster } from "@/components/ui/toaster"
 
-const geistSans = Geist({
-  subsets: ["latin"],
-  variable: "--font-sans",
-})
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-})
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" })
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
 export const metadata: Metadata = {
-  title: "FitTrack - Your Personal Gym Companion",
-  description: "Track workouts, follow training plans, and achieve your fitness goals",
-  generator: "v0.app",
+  title: "FORM / ONE — Training intelligence",
+  description: "Find a program, build your own, and keep the proof of every session.",
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="font-sans">
-        <ThemeProvider>
-          {children}
-          <Toaster />
-        </ThemeProvider>
-      </body>
-    </html>
-  )
+export const viewport: Viewport = { themeColor: "#1d211b", width: "device-width", initialScale: 1 }
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark`}><body className="font-sans antialiased">{children}</body></html>
 }

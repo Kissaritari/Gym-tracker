@@ -1,63 +1,75 @@
-import { getSession } from "@/lib/auth"
-import { redirect } from "next/navigation"
-import Link from "next/link"
+"use client"
+
+import type React from "react"
+import { useEffect, useMemo, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Dumbbell, Target, TrendingUp, Users } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Activity, ArrowRight, Bot, Check, ChevronRight, CircleUserRound, Clock3, Dumbbell, LogOut, Plus, Sparkles, Target, TrendingUp, X } from "lucide-react"
 
-export default async function HomePage() {
-  const user = await getSession()
+type Program = { id: string; name: string; description: string; difficulty_level: string; duration_weeks: number; is_public?: boolean }
 
-  if (user) {
-    redirect("/dashboard")
+const starterPrograms: Program[] = [
+  { id: "push-pull", name: "Push / Pull / Legs", description: "A balanced strength cycle built around the big three movement patterns.", difficulty_level: "Intermediate", duration_weeks: 8, is_public: true },
+  { id: "foundation", name: "Strength Foundation", description: "Three focused sessions each week to build consistency and confidence.", difficulty_level: "Beginner", duration_weeks: 6, is_public: true },
+  { id: "athlete", name: "Athletic Engine", description: "Power, conditioning, and mobility for a more capable body.", difficulty_level: "Advanced", duration_weeks: 10, is_public: true },
+]
+
+const promptTemplate = `Create a progressive workout program for me.\n\nGoal: [strength / muscle / fat loss / general fitness]\nExperience: [beginner / intermediate / advanced]\nDays per week: [number]\nEquipment: [home / full gym / list equipment]\nSession length: [minutes]\nLimitations or preferences: [details]\n\nReturn a 4-week plan with exercise names, sets, reps, rest, warm-ups, and progression notes.`
+
+function Spinner() { return <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-label="Loading" /> }
+
+export default function HomePage() {
+  const supabase = useMemo(() => createClient(), [])
+  const [user, setUser] = useState<any>(null)
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authMessage, setAuthMessage] = useState("")
+  const [tab, setTab] = useState<"overview" | "programs" | "sessions" | "ai">("overview")
+  const [programs, setPrograms] = useState<Program[]>(starterPrograms)
+  const [sessions, setSessions] = useState(7)
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [newDescription, setNewDescription] = useState("")
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
+    return () => listener.subscription.unsubscribe()
+  }, [supabase])
+
+  async function submitAuth(event: React.FormEvent) {
+    event.preventDefault(); setAuthLoading(true); setAuthMessage("")
+    const result = authMode === "login"
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback` } })
+    setAuthLoading(false)
+    if (result.error) setAuthMessage("We could not complete that request. Check your details and try again.")
+    else if (authMode === "signup" && !result.data.session) setAuthMessage("Check your inbox to confirm your account, then sign in.")
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <Dumbbell className="h-16 w-16 text-theme-primary" />
-          </div>
-          <h1 className="text-5xl font-bold text-white mb-6">FitTracker</h1>
-          <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-            Your personal gym companion. Track workouts, follow structured plans, and achieve your fitness goals with
-            expert guidance.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="bg-theme-primary hover:bg-theme-secondary text-white">
-              <Link href="/auth/signup">Get Started</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="border-slate-600 text-slate-200 hover:bg-slate-700 bg-transparent"
-            >
-              <Link href="/auth/login">Sign In</Link>
-            </Button>
-          </div>
-        </div>
+  async function addProgram(event: React.FormEvent) {
+    event.preventDefault()
+    if (!newName.trim()) return
+    const program = { id: `custom-${Date.now()}`, name: newName, description: newDescription || "Your custom training plan.", difficulty_level: "Custom", duration_weeks: 4 }
+    setPrograms((current) => [program, ...current]); setNewName(""); setNewDescription(""); setShowCreate(false); setTab("programs")
+    if (user) await supabase.from("workout_plans").insert({ name: program.name, description: program.description, difficulty_level: program.difficulty_level, duration_weeks: program.duration_weeks, created_by: user.id, is_public: false })
+  }
 
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="text-center p-6 bg-slate-800/50 rounded-lg border border-slate-700">
-            <Target className="h-12 w-12 text-theme-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Structured Plans</h3>
-            <p className="text-slate-300">Follow expertly designed workout plans tailored to your fitness level</p>
-          </div>
-          <div className="text-center p-6 bg-slate-800/50 rounded-lg border border-slate-700">
-            <TrendingUp className="h-12 w-12 text-theme-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Track Progress</h3>
-            <p className="text-slate-300">Monitor your performance and see your strength gains over time</p>
-          </div>
-          <div className="text-center p-6 bg-slate-800/50 rounded-lg border border-slate-700">
-            <Users className="h-12 w-12 text-theme-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Expert Tips</h3>
-            <p className="text-slate-300">Get real-time form tips and exercise guidance during your workouts</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  async function signOut() { await supabase.auth.signOut(); setUser(null) }
+  function copyPrompt() { navigator.clipboard.writeText(promptTemplate); setCopied(true); setTimeout(() => setCopied(false), 1800) }
+
+  if (!user) return <main className="min-h-screen bg-background text-foreground"><div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-between px-6 py-8 lg:px-10"><header className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Dumbbell /></div><span className="font-mono text-sm font-bold tracking-[0.22em]">FORM / ONE</span></div><span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">Training intelligence</span></header><div className="grid items-center gap-16 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24"><section><Badge variant="outline" className="mb-6 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.22em]"><span className="mr-2 size-1.5 rounded-full bg-primary" />Personal training, simplified</Badge><h1 className="max-w-2xl text-5xl font-semibold leading-[0.98] tracking-[-0.06em] sm:text-7xl">Train with a plan. <span className="text-primary">Keep the proof.</span></h1><p className="mt-7 max-w-lg text-lg leading-relaxed text-muted-foreground">One focused space to find a program, build your own, and turn every session into momentum.</p><div className="mt-10 flex flex-wrap gap-3"><Button size="lg" onClick={() => { setAuthMode("signup"); document.getElementById("auth")?.scrollIntoView({ behavior: "smooth" }) }}>Start training <ArrowRight data-icon="inline-end" /></Button><Button size="lg" variant="outline" onClick={() => document.getElementById("auth")?.scrollIntoView({ behavior: "smooth" })}>Sign in</Button></div><div className="mt-14 grid max-w-lg grid-cols-3 gap-5 border-t pt-6"><div><p className="font-mono text-2xl">01</p><p className="mt-1 text-xs text-muted-foreground">Pick a direction</p></div><div><p className="font-mono text-2xl">02</p><p className="mt-1 text-xs text-muted-foreground">Log the work</p></div><div><p className="font-mono text-2xl">03</p><p className="mt-1 text-xs text-muted-foreground">See the trend</p></div></div></section><section id="auth" className="rounded-3xl border bg-card p-7 shadow-2xl shadow-primary/5 sm:p-9"><div className="mb-8"><p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">{authMode === "login" ? "Welcome back" : "Create account"}</p><h2 className="mt-3 text-3xl font-semibold tracking-tight">{authMode === "login" ? "Ready for your next set?" : "Start your training log."}</h2></div><form onSubmit={submitAuth} className="flex flex-col gap-4"><label className="grid gap-2 text-sm font-medium">Email<Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required /></label><label className="grid gap-2 text-sm font-medium">Password<Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" minLength={6} required /></label>{authMessage && <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{authMessage}</p>}<Button type="submit" size="lg" disabled={authLoading}>{authLoading ? <><Spinner /> Working...</> : authMode === "login" ? "Sign in" : "Create account"}</Button></form><button className="mt-6 w-full text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setAuthMode(authMode === "login" ? "signup" : "login"); setAuthMessage("") }}>{authMode === "login" ? "Need an account? Sign up" : "Already have an account? Sign in"}</button></section></div></div></main>
+
+  return <main className="min-h-screen bg-background text-foreground"><aside className="fixed inset-y-0 hidden w-64 border-r bg-card/60 p-6 lg:flex lg:flex-col"><div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Dumbbell /></div><span className="font-mono text-sm font-bold tracking-[0.2em]">FORM / ONE</span></div><nav className="mt-14 flex flex-col gap-2">{(["overview", "programs", "sessions", "ai"] as const).map((item) => <button key={item} onClick={() => setTab(item)} className={`flex items-center justify-between rounded-xl px-4 py-3 text-left text-sm capitalize transition-colors ${tab === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{item === "ai" ? "AI builder" : item}<ChevronRight className="size-4" /></button>)}</nav><div className="mt-auto border-t pt-5"><div className="mb-4 flex items-center gap-3"><CircleUserRound className="size-8 text-primary" /><div className="min-w-0"><p className="truncate text-sm font-medium">{user.email}</p><p className="text-xs text-muted-foreground">Athlete account</p></div></div><button onClick={signOut} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><LogOut className="size-4" /> Sign out</button></div></aside><div className="lg:pl-64"><header className="flex items-center justify-between border-b px-6 py-5 lg:px-10"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">Monday, September 14</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Good to see you back.</h1></div><Button variant="outline" size="sm" onClick={signOut}><LogOut data-icon="inline-start" /> Sign out</Button></header><div className="border-b px-6 py-3 lg:hidden"><div className="flex gap-2 overflow-x-auto">{(["overview", "programs", "sessions", "ai"] as const).map((item) => <Button key={item} size="sm" variant={tab === item ? "default" : "ghost"} onClick={() => setTab(item)} className="capitalize">{item === "ai" ? "AI builder" : item}</Button>)}</div></div><section className="mx-auto max-w-7xl px-6 py-8 lg:px-10">{tab === "overview" && <><div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">Your training system</p><h2 className="mt-2 text-4xl font-semibold tracking-[-0.04em]">Make today count.</h2></div><Button onClick={() => setTab("sessions")}><Activity data-icon="inline-start" /> Log a session</Button></div><div className="grid gap-4 md:grid-cols-3"><Stat label="Sessions logged" value={sessions.toString()} detail="+3 this month" icon={Check} /><Stat label="Current streak" value="12" detail="days consistent" icon={TrendingUp} /><Stat label="This week" value="3 / 4" detail="sessions completed" icon={Target} /></div><div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]"><div className="rounded-2xl border bg-card p-6"><div className="flex items-start justify-between"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Activity matrix</p><h3 className="mt-2 text-xl font-semibold">Consistency compounds.</h3></div><Badge variant="secondary">Last 12 weeks</Badge></div><div className="mt-8 grid grid-cols-12 gap-2">{Array.from({ length: 84 }).map((_, i) => <div key={i} className={`aspect-square rounded-sm ${i % 11 === 0 || i % 7 === 0 ? "bg-primary" : i % 4 === 0 ? "bg-primary/40" : "bg-muted"}`} />)}</div><div className="mt-5 flex justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground"><span>Less</span><span>More</span></div></div><div className="rounded-2xl bg-primary p-6 text-primary-foreground"><Sparkles className="size-6" /><p className="mt-10 font-mono text-xs uppercase tracking-[0.18em] opacity-70">Next best action</p><h3 className="mt-2 text-2xl font-semibold">Finish your lower body session.</h3><p className="mt-3 text-sm leading-relaxed opacity-80">You are one session away from completing this week&apos;s target.</p><Button className="mt-7 bg-primary-foreground text-primary hover:bg-primary-foreground/90" onClick={() => setTab("sessions")}>Open tracker <ArrowRight data-icon="inline-end" /></Button></div></div></>}{tab === "programs" && <Programs programs={programs} onCreate={() => setShowCreate(true)} onStart={() => { setSessions((n) => n + 1); setTab("sessions") }} />}{tab === "sessions" && <Sessions sessions={sessions} onLog={() => setSessions((n) => n + 1)} />}{tab === "ai" && <AIBuilder copied={copied} onCopy={copyPrompt} />}</section></div>{showCreate && <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-6 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl border bg-card p-6 shadow-2xl"><div className="flex items-start justify-between"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">New program</p><h2 className="mt-2 text-2xl font-semibold">Build your own split.</h2></div><button onClick={() => setShowCreate(false)}><X className="size-5 text-muted-foreground" /></button></div><form onSubmit={addProgram} className="mt-6 flex flex-col gap-4"><label className="grid gap-2 text-sm font-medium">Program name<Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="My strength block" required /></label><label className="grid gap-2 text-sm font-medium">Description<Textarea value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="What are you working toward?" /></label><Button type="submit">Save program <ArrowRight data-icon="inline-end" /></Button></form></div></div>}</main>
 }
+
+function Stat({ label, value, detail, icon: Icon }: { label: string; value: string; detail: string; icon: any }) { return <div className="rounded-2xl border bg-card p-5"><div className="flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p><Icon className="size-4 text-primary" /></div><p className="mt-5 text-4xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-sm text-muted-foreground">{detail}</p></div> }
+function Programs({ programs, onCreate, onStart }: { programs: Program[]; onCreate: () => void; onStart: () => void }) { return <><div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">Program library</p><h2 className="mt-2 text-4xl font-semibold tracking-[-0.04em]">Choose your next block.</h2></div><Button onClick={onCreate}><Plus data-icon="inline-start" /> Custom program</Button></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{programs.map((program, index) => <article key={program.id} className="group flex min-h-64 flex-col rounded-2xl border bg-card p-6 transition-colors hover:border-primary/50"><div className="flex items-start justify-between"><span className="font-mono text-3xl text-muted-foreground/40">0{index + 1}</span><Badge variant={program.difficulty_level === "Advanced" ? "default" : "secondary"}>{program.difficulty_level}</Badge></div><div className="mt-auto"><h3 className="text-xl font-semibold">{program.name}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{program.description}</p><div className="mt-5 flex items-center justify-between border-t pt-4"><span className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="size-4" /> {program.duration_weeks} weeks</span><Button size="sm" variant="ghost" onClick={onStart}>Start <ArrowRight data-icon="inline-end" /></Button></div></div></article>)}</div></> }
+function Sessions({ sessions, onLog }: { sessions: number; onLog: () => void }) { const [done, setDone] = useState(false); return <><div className="mb-8"><p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">Session tracker</p><h2 className="mt-2 text-4xl font-semibold tracking-[-0.04em]">Record the work.</h2></div><div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-2xl border bg-card p-6"><div className="flex items-center justify-between"><div><p className="font-mono text-xs uppercase tracking-widest text-primary">Today · Lower body</p><h3 className="mt-2 text-2xl font-semibold">Strength Foundation</h3></div><Badge>In progress</Badge></div><div className="mt-8 flex flex-col gap-3">{["Back squat", "Romanian deadlift", "Walking lunge", "Calf raise"].map((exercise, i) => <button key={exercise} onClick={() => setDone(!done)} className={`flex items-center justify-between rounded-xl border p-4 text-left transition-colors ${done && i < 2 ? "border-primary bg-primary/10" : "hover:bg-muted"}`}><span className="flex items-center gap-3"><span className={`grid size-7 place-items-center rounded-full border text-xs ${done && i < 2 ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{done && i < 2 ? <Check className="size-4" /> : i + 1}</span><span><span className="block font-medium">{exercise}</span><span className="text-xs text-muted-foreground">4 sets · 8 reps</span></span></span><ChevronRight className="size-4 text-muted-foreground" /></button>)}</div><Button className="mt-6 w-full" onClick={() => { onLog(); setDone(true) }}>{done ? "Session completed" : "Complete session"} <Check data-icon="inline-end" /></Button></div><div className="rounded-2xl bg-muted p-6"><p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Your log</p><p className="mt-5 text-5xl font-semibold">{sessions}</p><p className="mt-1 text-sm text-muted-foreground">total sessions completed</p><div className="mt-10 border-t pt-5"><p className="text-sm font-medium">This week</p><div className="mt-4 flex gap-2">{["M", "T", "W", "T", "F", "S", "S"].map((day, i) => <div key={`${day}-${i}`} className="flex flex-1 flex-col items-center gap-2"><div className={`h-16 w-full rounded-md ${i < 3 ? "bg-primary" : "bg-background"}`} /><span className="font-mono text-[10px] text-muted-foreground">{day}</span></div>)}</div></div></div></div></> }
+function AIBuilder({ copied, onCopy }: { copied: boolean; onCopy: () => void }) { return <><div className="mb-8 max-w-2xl"><p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">AI program builder</p><h2 className="mt-2 text-4xl font-semibold tracking-[-0.04em]">Start with a better brief.</h2><p className="mt-3 text-muted-foreground">Use the ready-made prompt below with your preferred AI tool. Add your details, paste, and get a program built around your actual week.</p></div><div className="grid gap-6 lg:grid-cols-[1fr_0.7fr]"><div className="rounded-2xl border bg-card p-6"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot /></div><div><h3 className="font-semibold">Program prompt</h3><p className="text-xs text-muted-foreground">Copy-ready template</p></div></div><Button size="sm" onClick={onCopy}>{copied ? <><Check data-icon="inline-start" /> Copied</> : "Copy prompt"}</Button></div><pre className="mt-6 whitespace-pre-wrap rounded-xl bg-muted p-5 font-mono text-sm leading-relaxed text-muted-foreground">{promptTemplate}</pre></div><div className="rounded-2xl bg-primary p-6 text-primary-foreground"><Sparkles className="size-6" /><h3 className="mt-8 text-2xl font-semibold">A smarter starting point.</h3><p className="mt-3 text-sm leading-relaxed opacity-80">The best program is the one you can repeat. Give the model your constraints, not just your goal.</p><div className="mt-8 flex flex-col gap-3 text-sm"><p className="flex items-center gap-2"><Check className="size-4" /> Include your available equipment</p><p className="flex items-center gap-2"><Check className="size-4" /> Mention old injuries or limits</p><p className="flex items-center gap-2"><Check className="size-4" /> Set a realistic weekly target</p></div></div></div></> }
