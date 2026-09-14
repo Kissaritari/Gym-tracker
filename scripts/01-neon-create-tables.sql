@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS exercises (
   equipment VARCHAR(100),
   instructions TEXT,
   tips TEXT,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  is_custom BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

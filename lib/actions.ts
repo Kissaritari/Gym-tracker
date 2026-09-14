@@ -182,20 +182,66 @@ export async function updateProgram(
 
 export async function startWorkoutSession(workoutPlanId: string) {
   const user = await getSession()
-  if (!user) {
-    return { success: false, error: "Not authenticated" }
-  }
+  if (!user) return { success: false, error: "Not authenticated" }
 
   try {
+    const existing = await sql`
+      SELECT id FROM workout_sessions
+      WHERE user_id = ${user.id} AND workout_plan_id = ${workoutPlanId} AND completed_at IS NULL
+      ORDER BY started_at DESC LIMIT 1
+    `
+    if (existing.length > 0) return { success: true, sessionId: existing[0].id, resumed: true }
+
     const result = await sql`
       INSERT INTO workout_sessions (user_id, workout_plan_id, started_at)
       VALUES (${user.id}, ${workoutPlanId}, NOW())
       RETURNING id
     `
-    return { success: true, sessionId: result[0].id }
+    return { success: true, sessionId: result[0].id, resumed: false }
   } catch (error) {
     console.error("Error starting session:", error)
     return { success: false, error: "Failed to start session" }
+  }
+}
+
+export async function fetchWorkoutProgress(sessionId: string) {
+  const user = await getSession()
+  if (!user) return { success: false, logs: [] }
+  try {
+    const logs = await sql`
+      SELECT el.exercise_id, el.sets_completed, el.reps_completed, el.weight_used, el.logged_at
+      FROM exercise_logs el
+      JOIN workout_sessions ws ON ws.id = el.session_id
+      WHERE el.session_id = ${sessionId} AND ws.user_id = ${user.id}
+      ORDER BY el.logged_at
+    `
+    return { success: true, logs }
+  } catch (error) {
+    console.error("Error fetching workout progress:", error)
+    return { success: false, logs: [] }
+  }
+} 
+
+export async function createCustomExercise(data: {
+  name: string
+  description?: string
+  equipment?: string
+  muscleGroups: string[]
+  instructions?: string
+  tips?: string
+}) {
+  const user = await getSession()
+  if (!user) return { success: false, error: "Not authenticated" }
+  try {
+    const result = await sql`
+      INSERT INTO exercises (name, description, muscle_groups, equipment, instructions, tips)
+      VALUES (${data.name.trim()}, ${data.description || null}, ${data.muscleGroups}, ${data.equipment || null}, ${data.instructions || null}, ${data.tips || null})
+      RETURNING id, name, description, muscle_groups, equipment, instructions, tips
+    `
+    return { success: true, exercise: result[0] }
+  } catch (error) {
+    console.error("Error creating custom exercise:", error)
+    return { success: false, error: "Failed to create custom exercise" }
   }
 }
 
@@ -234,6 +280,20 @@ export async function logExercise(data: {
   }
 
   try {
+    const session = await sql`
+      SELECT id FROM workout_sessions WHERE id = ${data.sessionId} AND user_id = ${user.id}
+    `
+    if (session.length === 0) return { success: false, error: "Session not found" }
+
+    const existing = await sql`
+      SELECT id FROM exercise_logs WHERE session_id = ${data.sessionId} AND exercise_id = ${data.exerciseId}
+    `
+    if (existing.length > 0) return { success: false, error: "Exercise already logged" }
+
+    if (data.setsCompleted <= 0 || data.repsCompleted.length !== data.weightUsed.length || data.repsCompleted.some((reps) => reps <= 0)) {
+      return { success: false, error: "Log at least one valid set" }
+    }
+
     await sql`
       INSERT INTO exercise_logs (session_id, exercise_id, sets_completed, reps_completed, weight_used, notes)
       VALUES (${data.sessionId}, ${data.exerciseId}, ${data.setsCompleted}, ${data.repsCompleted}, ${data.weightUsed}, ${data.notes || null})

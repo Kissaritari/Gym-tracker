@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Play, CheckCircle, Info } from "lucide-react"
 import Link from "next/link"
 import ExerciseTracker from "./exercise-tracker"
-import { startWorkoutSession, endWorkoutSession } from "@/lib/actions"
+import { startWorkoutSession, endWorkoutSession, fetchWorkoutProgress } from "@/lib/actions"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 interface WorkoutSessionProps {
@@ -27,6 +27,8 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set())
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
+  const [loggedSets, setLoggedSets] = useState<Record<string, Array<{ reps: number; weight: number }>>>({})
+  const [isStarting, setIsStarting] = useState(false)
 
   const days = Object.keys(exercisesByDay).sort((a, b) => Number.parseInt(a) - Number.parseInt(b))
   const currentDayExercises = exercisesByDay[currentDay] || []
@@ -53,18 +55,24 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
   }
 
   const startSession = async () => {
+    setIsStarting(true)
     try {
       const result = await startWorkoutSession(workoutPlan.id)
       if (result.success && result.sessionId) {
         setSessionId(result.sessionId)
+        const progress = await fetchWorkoutProgress(result.sessionId)
+        const completed = new Set<string>()
+        const sets: Record<string, Array<{ reps: number; weight: number }>> = {}
+        progress.logs?.forEach((log: any) => {
+          completed.add(`${currentDay}-${log.exercise_id}`)
+          sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
+        })
+        setCompletedExercises(completed)
+        setLoggedSets(sets)
         setIsSessionActive(true)
         setSessionStartTime(new Date())
-      } else {
-        console.error("Error starting session:", result.error)
-      }
-    } catch (error) {
-      console.error("Error starting session:", error)
-    }
+      } else console.error("Error starting session:", result.error)
+    } catch (error) { console.error("Error starting session:", error) } finally { setIsStarting(false) }
   }
 
   const endSession = async () => {
@@ -130,9 +138,9 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
             <div className="flex items-center gap-2">
               <ThemeToggle />
               {!isSessionActive ? (
-                <Button onClick={startSession} className="bg-theme-primary hover:bg-theme-secondary text-white">
+                <Button onClick={startSession} disabled={isStarting} aria-busy={isStarting} className="bg-theme-primary hover:bg-theme-secondary text-white">
                   <Play className="h-4 w-4 mr-2" />
-                  Start Workout
+                  {isStarting ? "Starting..." : "Start Workout"}
                 </Button>
               ) : (
                 <Button
@@ -259,8 +267,9 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
                             exercise={planExercise.exercise}
                             planExercise={planExercise}
                             sessionId={sessionId}
-                            onComplete={() => handleExerciseComplete(planExercise.exercise.id)}
+                            onComplete={(sets) => { setLoggedSets((current) => ({ ...current, [planExercise.exercise.id]: sets })); handleExerciseComplete(planExercise.exercise.id) }}
                             isCompleted={completedExercises.has(`${day}-${planExercise.exercise.id}`)}
+                            initialSets={loggedSets[planExercise.exercise.id]}
                           />
                         )}
                       </div>

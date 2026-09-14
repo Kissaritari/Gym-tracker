@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Save } from "lucide-react"
-import { createProgram, updateProgram } from "@/lib/actions"
+import { createProgram, updateProgram, createCustomExercise } from "@/lib/actions"
 
 interface Exercise {
   id: string
@@ -40,6 +40,10 @@ interface ProgramFormProps {
 
 export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps) {
   const router = useRouter()
+  const [availableExercises, setAvailableExercises] = useState<Exercise[]>(exercises)
+  const [showCustomExercise, setShowCustomExercise] = useState(false)
+  const [customExercise, setCustomExercise] = useState({ name: "", description: "", equipment: "", muscleGroups: "", instructions: "", tips: "" })
+  const [isCreatingExercise, setIsCreatingExercise] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -60,6 +64,18 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
       orderInDay: ex.order_in_day,
     })) || [],
   )
+
+  const saveCustomExercise = async () => {
+    if (!customExercise.name.trim()) return
+    setIsCreatingExercise(true)
+    const result = await createCustomExercise({ ...customExercise, muscleGroups: customExercise.muscleGroups.split(",").map((item) => item.trim()).filter(Boolean) })
+    if (result.success && result.exercise) {
+      setAvailableExercises((current) => [...current, result.exercise as Exercise])
+      setShowCustomExercise(false)
+      setCustomExercise({ name: "", description: "", equipment: "", muscleGroups: "", instructions: "", tips: "" })
+    }
+    setIsCreatingExercise(false)
+  }
 
   const addExercise = () => {
     setProgramExercises([
@@ -234,9 +250,22 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
               <Plus className="h-4 w-4 mr-2" />
               Add Exercise
             </Button>
+            <Button type="button" variant="outline" onClick={() => setShowCustomExercise((value) => !value)} className="border-theme-primary text-theme-primary bg-transparent">
+              Create custom
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {showCustomExercise && <div className="rounded-lg border border-theme-primary/40 bg-theme-primary/10 p-4 space-y-3" aria-busy={isCreatingExercise}>
+            <h3 className="font-semibold text-white">Create custom exercise</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              {([['name','Name'],['equipment','Equipment'],['muscleGroups','Muscle groups (comma separated)'],['description','Description'],['instructions','Instructions'],['tips','Tips']] as const).map(([field, label]) => <div key={field}>
+                <Label className="text-slate-200" htmlFor={`custom-${field}`}>{label}</Label>
+                <Input id={`custom-${field}`} value={customExercise[field]} onChange={(e) => setCustomExercise((current) => ({ ...current, [field]: e.target.value }))} className="bg-slate-700 border-slate-600 text-white" />
+              </div>)}
+            </div>
+            <Button type="button" onClick={saveCustomExercise} disabled={isCreatingExercise || !customExercise.name.trim()} className="bg-theme-primary text-white">{isCreatingExercise ? "Creating..." : "Save custom exercise"}</Button>
+          </div>}
           {programExercises.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               No exercises added yet. Click "Add Exercise" to get started.
@@ -265,7 +294,7 @@ export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps
                                   <SelectValue placeholder="Select exercise" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-700 border-slate-600">
-                                  {exercises.map((ex) => (
+                                  {availableExercises.map((ex) => (
                                     <SelectItem key={ex.id} value={ex.id}>
                                       {ex.name}
                                     </SelectItem>
