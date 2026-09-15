@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { endWorkoutSession, fetchWorkoutProgress, startWorkoutSession } from "@/lib/actions"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import ExerciseTracker from "./exercise-tracker"
+import { completedExerciseKeys, exerciseKey, findExerciseForKey } from "@/lib/workout-tracker"
 
 interface WorkoutSessionProps {
   workoutPlan: any
@@ -49,21 +50,17 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
   }, [currentDay, currentDayExercises, activeExerciseKey])
 
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
-  const exerciseKey = (day: string, item: any) => `${day}-${item.id}`
-
   const startSession = async () => {
     setIsStarting(true)
     try {
       const result = await startWorkoutSession(workoutPlan.id)
       if (!result.success || !result.sessionId) return
       const progressResult = await fetchWorkoutProgress(result.sessionId)
-      const completed = new Set<string>()
       const sets: Record<string, LoggedSet[]> = {}
       for (const log of progressResult.logs || []) {
-        const matchingDay = days.find((day) => (exercisesByDay[day] || []).some((item) => item.exercise.id === log.exercise_id))
-        if (matchingDay) completed.add(exerciseKey(matchingDay, (exercisesByDay[matchingDay] || []).find((item) => item.exercise.id === log.exercise_id)))
         sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
       }
+      const completed = completedExerciseKeys(days, exercisesByDay, (progressResult.logs || []).map((log: any) => log.exercise_id))
       setSessionId(result.sessionId)
       setCompletedExercises(completed)
       setLoggedSets(sets)
@@ -85,7 +82,7 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
     setActiveExerciseKey(exerciseKey(day, item))
   }
 
-  const activeExercise = currentDayExercises.find((item) => exerciseKey(currentDay, item) === activeExerciseKey)
+  const activeExercise = findExerciseForKey(currentDayExercises, currentDay, activeExerciseKey)
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
