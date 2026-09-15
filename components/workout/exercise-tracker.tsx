@@ -19,10 +19,11 @@ interface ExerciseTrackerProps {
 
 export default function ExerciseTracker({ exercise, planExercise, sessionId, onComplete, isCompleted, initialSets = [] }: ExerciseTrackerProps) {
   const targetSets = Number(planExercise.sets) || 1
-  const [sets, setSets] = useState(initialSets)
+  const [sets, setSets] = useState<Array<{ reps: number; weight: number }>>(() => initialSets.length ? initialSets : Array.from({ length: targetSets }, () => ({ reps: 0, weight: 0 })))
   const [isLogging, setIsLogging] = useState(false)
   const [restTimer, setRestTimer] = useState(0)
   const [isResting, setIsResting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isResting) return
@@ -41,9 +42,11 @@ export default function ExerciseTracker({ exercise, planExercise, sessionId, onC
 
   const handleLogExercise = async () => {
     if (validSets.length === 0 || isCompleted) return
+    setError(null)
     setIsLogging(true)
     const result = await logExercise({ sessionId, exerciseId: exercise.id, setsCompleted: validSets.length, repsCompleted: validSets.map((set) => set.reps), weightUsed: validSets.map((set) => set.weight), notes: `Completed ${validSets.length} sets` })
     if (result.success) onComplete(validSets)
+    else setError(result.error || "Could not save this exercise")
     setIsLogging(false)
   }
 
@@ -59,6 +62,7 @@ export default function ExerciseTracker({ exercise, planExercise, sessionId, onC
         <div className="flex gap-1 mb-1"><Button type="button" size="icon" variant="ghost" aria-label="Decrease reps" onClick={() => updateSet(index, "reps", set.reps - 1)}><Minus className="h-3 w-3" /></Button><Button type="button" size="icon" variant="ghost" aria-label="Increase reps" onClick={() => updateSet(index, "reps", set.reps + 1)}><Plus className="h-3 w-3" /></Button></div>
       </div>)}
       <div className="flex gap-2"><Button type="button" onClick={addSet} variant="outline" disabled={sets.length >= targetSets || isResting} className="flex-1 border-slate-600 text-slate-300 bg-transparent"><Plus className="h-4 w-4 mr-2" />Add set</Button><Button type="button" onClick={startRestTimer} disabled={isResting} variant="outline" className="border-slate-600 text-slate-300 bg-transparent"><Timer className="h-4 w-4 mr-2" />{isResting ? `${restTimer}s` : "Rest"}</Button></div>
+      {error && <p role="alert" className="text-sm text-red-300 rounded-md border border-red-400/30 bg-red-400/10 p-3">{error}</p>}
       {isResting && <Button type="button" variant="ghost" onClick={() => { setRestTimer(0); setIsResting(false) }} className="w-full text-slate-300"><SkipForward className="h-4 w-4 mr-2" />Skip rest</Button>}
       <Button type="button" onClick={handleLogExercise} disabled={isLogging || validSets.length === 0} className="w-full bg-theme-primary hover:bg-theme-secondary text-white">{isLogging ? "Saving set log..." : `Complete exercise (${validSets.length}/${targetSets})`}</Button>
     </CardContent>

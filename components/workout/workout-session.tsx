@@ -64,7 +64,8 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: 
         const completed = new Set<string>()
         const sets: Record<string, Array<{ reps: number; weight: number }>> = {}
         progress.logs?.forEach((log: any) => {
-          completed.add(`${currentDay}-${log.exercise_id}`)
+          const exerciseDay = days.find((day) => exercisesByDay[day]?.some((item: any) => item.exercise.id === log.exercise_id))
+          if (exerciseDay) completed.add(`${exerciseDay}-${log.exercise_id}`)
           sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
         })
         setCompletedExercises(completed)

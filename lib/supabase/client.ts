@@ -7,7 +7,14 @@ export function createClient() {
   client = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookieOptions: { secure: process.env.NODE_ENV === "production" } },
+    {
+      cookieOptions: { secure: process.env.NODE_ENV === "production" },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    },
   )
   return client
 }
