@@ -29,6 +29,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
   const [recentSessions, setRecentSessions] = useState<any[]>([])
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadSessions()
@@ -39,11 +40,15 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
     try {
       const result = await fetchSessions()
       if (result.success) {
+        setError(null)
         setActiveSessions(result.activeSessions || [])
         setRecentSessions(result.recentSessions || [])
+      } else {
+        setError(result.error || "Could not load sessions")
       }
     } catch (error) {
       console.error("Error fetching sessions:", error)
+      setError("Could not load sessions")
     } finally {
       setLoading(false)
     }
@@ -103,6 +108,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
 
   return (
     <div className="space-y-6">
+      {error && <Card className="border-red-500/40 bg-red-500/10"><CardContent className="p-4 text-sm text-red-200" role="alert">{error}</CardContent></Card>}
       {/* Stats Overview */}
       {sessionStats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -210,7 +216,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>Exercises completed: {session.exercise_logs.length}</span>
+                        <span>Exercises completed: {(session.exercise_logs || []).length}</span>
                     <span>Session ID: {session.id.slice(0, 8)}...</span>
                   </div>
                 </CardContent>
@@ -261,13 +267,13 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                     <div>
                       <span className="text-muted-foreground">Total Sets:</span>
                       <span className="ml-2 font-medium">
-                        {session.exercise_logs.reduce((total, log) => total + (log.sets_completed || 0), 0)}
+                        {(session.exercise_logs || []).reduce((total, log) => total + (log.sets_completed || 0), 0)}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Total Reps:</span>
                       <span className="ml-2 font-medium">
-                        {session.exercise_logs.reduce(
+                        {(session.exercise_logs || []).reduce(
                           (total, log) => total + (log.reps_completed?.reduce((sum, reps) => sum + reps, 0) || 0),
                           0,
                         )}

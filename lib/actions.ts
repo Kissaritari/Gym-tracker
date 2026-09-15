@@ -314,7 +314,18 @@ export async function fetchSessions() {
   try {
     // Fetch active sessions
     const activeSessions = await sql`
-      SELECT ws.*, wp.name as plan_name, wp.difficulty
+      SELECT ws.*, wp.name as plan_name, wp.difficulty,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', el.id,
+            'exercise_id', el.exercise_id,
+            'sets_completed', el.sets_completed,
+            'reps_completed', el.reps_completed,
+            'weight_used', el.weight_used,
+            'logged_at', el.logged_at
+          ) ORDER BY el.logged_at)
+          FROM exercise_logs el WHERE el.session_id = ws.id
+        ), '[]'::json) AS exercise_logs
       FROM workout_sessions ws
       LEFT JOIN workout_plans wp ON ws.workout_plan_id = wp.id
       WHERE ws.user_id = ${user.id} AND ws.completed_at IS NULL
@@ -323,7 +334,18 @@ export async function fetchSessions() {
 
     // Fetch recent completed sessions
     const recentSessions = await sql`
-      SELECT ws.*, wp.name as plan_name, wp.difficulty
+      SELECT ws.*, wp.name as plan_name, wp.difficulty,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', el.id,
+            'exercise_id', el.exercise_id,
+            'sets_completed', el.sets_completed,
+            'reps_completed', el.reps_completed,
+            'weight_used', el.weight_used,
+            'logged_at', el.logged_at
+          ) ORDER BY el.logged_at)
+          FROM exercise_logs el WHERE el.session_id = ws.id
+        ), '[]'::json) AS exercise_logs
       FROM workout_sessions ws
       LEFT JOIN workout_plans wp ON ws.workout_plan_id = wp.id
       WHERE ws.user_id = ${user.id} AND ws.completed_at IS NOT NULL
