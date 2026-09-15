@@ -1,287 +1,122 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { ArrowLeft, CheckCircle, Info, Play } from "lucide-react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Play, CheckCircle, Info } from "lucide-react"
-import Link from "next/link"
-import ExerciseTracker from "./exercise-tracker"
-import { startWorkoutSession, endWorkoutSession, fetchWorkoutProgress } from "@/lib/actions"
+import { endWorkoutSession, fetchWorkoutProgress, startWorkoutSession } from "@/lib/actions"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
+import ExerciseTracker from "./exercise-tracker"
 
 interface WorkoutSessionProps {
   workoutPlan: any
-  exercisesByDay: any
+  exercisesByDay: Record<string, any[]>
   userId: string
 }
 
-export default function WorkoutSession({ workoutPlan, exercisesByDay, userId }: WorkoutSessionProps) {
+type LoggedSet = { reps: number; weight: number }
+
+export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutSessionProps) {
   const router = useRouter()
-  const [currentDay, setCurrentDay] = useState("1")
+  const days = useMemo(() => Object.keys(exercisesByDay).sort((a, b) => Number(a) - Number(b)), [exercisesByDay])
+  const [currentDay, setCurrentDay] = useState(days[0] || "1")
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isSessionActive, setIsSessionActive] = useState(false)
-  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set())
+  const [isStarting, setIsStarting] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
-  const [loggedSets, setLoggedSets] = useState<Record<string, Array<{ reps: number; weight: number }>>>({})
-  const [isStarting, setIsStarting] = useState(false)
+  const [activeExerciseKey, setActiveExerciseKey] = useState<string | null>(null)
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set())
+  const [loggedSets, setLoggedSets] = useState<Record<string, LoggedSet[]>>({})
 
-  const days = Object.keys(exercisesByDay).sort((a, b) => Number.parseInt(a) - Number.parseInt(b))
   const currentDayExercises = exercisesByDay[currentDay] || []
-  const totalExercises = currentDayExercises.length
-  const completedCount = currentDayExercises.filter((ex: any) =>
-    completedExercises.has(`${currentDay}-${ex.exercise.id}`),
-  ).length
-  const progress = totalExercises > 0 ? (completedCount / totalExercises) * 100 : 0
+  const completedCount = currentDayExercises.filter((item) => completedExercises.has(`${currentDay}-${item.id}`)).length
+  const progress = currentDayExercises.length ? (completedCount / currentDayExercises.length) * 100 : 0
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (isSessionActive && sessionStartTime) {
-      interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000))
-      }, 1000)
-    }
-    return () => clearInterval(interval)
+    if (!isSessionActive || !sessionStartTime) return
+    const timer = window.setInterval(() => setElapsedTime(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000)), 1000)
+    return () => window.clearInterval(timer)
   }, [isSessionActive, sessionStartTime])
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
+  useEffect(() => {
+    if (!currentDayExercises.some((item) => `${currentDay}-${item.id}` === activeExerciseKey)) setActiveExerciseKey(null)
+  }, [currentDay, currentDayExercises, activeExerciseKey])
+
+  const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+  const exerciseKey = (day: string, item: any) => `${day}-${item.id}`
 
   const startSession = async () => {
     setIsStarting(true)
     try {
       const result = await startWorkoutSession(workoutPlan.id)
-      if (result.success && result.sessionId) {
-        setSessionId(result.sessionId)
-        const progress = await fetchWorkoutProgress(result.sessionId)
-        const completed = new Set<string>()
-        const sets: Record<string, Array<{ reps: number; weight: number }>> = {}
-        progress.logs?.forEach((log: any) => {
-          const exerciseDay = days.find((day) => exercisesByDay[day]?.some((item: any) => item.exercise.id === log.exercise_id))
-          if (exerciseDay) completed.add(`${exerciseDay}-${log.exercise_id}`)
-          sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
-        })
-        setCompletedExercises(completed)
-        setLoggedSets(sets)
-        setIsSessionActive(true)
-        setSessionStartTime(new Date())
-      } else console.error("Error starting session:", result.error)
-    } catch (error) { console.error("Error starting session:", error) } finally { setIsStarting(false) }
-  }
-
-  const endSession = async () => {
-    if (!sessionId) return
-
-    try {
-      const notes = `Completed ${completedCount}/${totalExercises} exercises`
-      const result = await endWorkoutSession(sessionId, notes)
-      if (result.success) {
-        setIsSessionActive(false)
-        router.push("/dashboard")
-      } else {
-        console.error("Error ending session:", result.error)
+      if (!result.success || !result.sessionId) return
+      const progressResult = await fetchWorkoutProgress(result.sessionId)
+      const completed = new Set<string>()
+      const sets: Record<string, LoggedSet[]> = {}
+      for (const log of progressResult.logs || []) {
+        const matchingDay = days.find((day) => (exercisesByDay[day] || []).some((item) => item.exercise.id === log.exercise_id))
+        if (matchingDay) completed.add(exerciseKey(matchingDay, (exercisesByDay[matchingDay] || []).find((item) => item.exercise.id === log.exercise_id)))
+        sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
       }
-    } catch (error) {
-      console.error("Error ending session:", error)
+      setSessionId(result.sessionId)
+      setCompletedExercises(completed)
+      setLoggedSets(sets)
+      setIsSessionActive(true)
+      setSessionStartTime(new Date())
+    } finally {
+      setIsStarting(false)
     }
   }
 
-  const handleExerciseComplete = (exerciseId: string) => {
-    const key = `${currentDay}-${exerciseId}`
-    setCompletedExercises((prev) => new Set([...prev, key]))
+  const finishSession = async () => {
+    if (!sessionId) return
+    const result = await endWorkoutSession(sessionId, `Completed ${completedCount}/${currentDayExercises.length} exercises`)
+    if (result.success) router.push("/dashboard")
   }
 
-  const getDifficultyColor = (level: string) => {
-    switch (level) {
-      case "beginner":
-        return "bg-green-500"
-      case "intermediate":
-        return "bg-yellow-500"
-      case "advanced":
-        return "bg-red-500"
-      default:
-        return "bg-gray-500"
-    }
+  const selectExercise = (day: string, item: any) => {
+    if (!isSessionActive) return
+    setActiveExerciseKey(exerciseKey(day, item))
   }
+
+  const activeExercise = currentDayExercises.find((item) => exerciseKey(currentDay, item) === activeExerciseKey)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      {/* Header */}
-      <div className="border-b border-slate-700 bg-slate-800/50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white">
-                <Link href="/dashboard">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-white">{workoutPlan.name}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className={`${getDifficultyColor(workoutPlan.difficulty)} text-white text-xs`}>
-                    {workoutPlan.difficulty}
-                  </Badge>
-                  {isSessionActive && (
-                    <span className="text-theme-primary font-mono text-sm">{formatTime(elapsedTime)}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              {!isSessionActive ? (
-                <Button onClick={startSession} disabled={isStarting} aria-busy={isStarting} className="bg-theme-primary hover:bg-theme-secondary text-white">
-                  <Play className="h-4 w-4 mr-2" />
-                  {isStarting ? "Starting..." : "Start Workout"}
-                </Button>
-              ) : (
-                <Button
-                  onClick={endSession}
-                  variant="outline"
-                  className="border-slate-600 text-slate-200 hover:bg-slate-700 bg-transparent"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  End Workout
-                </Button>
-              )}
-            </div>
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+      <header className="border-b border-slate-700 bg-slate-800/50">
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white"><Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link></Button>
+            <div><h1 className="text-2xl font-bold text-white">{workoutPlan.name}</h1><div className="mt-1 flex items-center gap-2"><Badge className="bg-slate-600 text-white">{workoutPlan.difficulty}</Badge>{isSessionActive && <span className="font-mono text-sm text-theme-primary">{formatTime(elapsedTime)}</span>}</div></div>
           </div>
+          <div className="flex items-center gap-2"><ThemeToggle />{!isSessionActive ? <Button onClick={startSession} disabled={isStarting} className="bg-theme-primary text-white"><Play className="mr-2 h-4 w-4" />{isStarting ? "Starting..." : "Start workout"}</Button> : <Button onClick={finishSession} variant="outline" className="border-slate-600 bg-transparent text-slate-200"><CheckCircle className="mr-2 h-4 w-4" />End workout</Button>}</div>
         </div>
-      </div>
+      </header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Progress */}
-        {isSessionActive && (
-          <Card className="bg-slate-800/50 border-slate-700 mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Day {currentDay} Progress</h3>
-                <span className="text-slate-300">
-                  {completedCount}/{totalExercises} exercises
-                </span>
-              </div>
-              <Progress value={progress} className="h-2" />
-              {progress === 100 && (
-                <div className="flex items-center gap-2 mt-3 text-theme-primary">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">Day {currentDay} Complete!</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {isSessionActive && <Card className="mb-6 border-slate-700 bg-slate-800/50"><CardContent className="p-6"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold text-white">Day {currentDay} progress</h2><span className="text-slate-300">{completedCount}/{currentDayExercises.length} exercises</span></div><Progress value={progress} className="h-2" /></CardContent></Card>}
 
-        {/* Day Selection */}
-        <Tabs value={currentDay} onValueChange={setCurrentDay} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800 mb-6">
-            {days.map((day) => (
-              <TabsTrigger
-                key={day}
-                value={day}
-                className="data-[state=active]:bg-theme-primary data-[state=active]:text-white"
-              >
-                Day {day}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {days.map((day) => (
-            <TabsContent key={day} value={day}>
-              <div className="space-y-6">
-                {exercisesByDay[day]?.map((planExercise: any, index: number) => (
-                  <Card key={planExercise.id} className="bg-slate-800/50 border-slate-700">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-white flex items-center gap-2">
-                            {planExercise.exercise.name}
-                            {completedExercises.has(`${day}-${planExercise.exercise.id}`) && (
-                              <CheckCircle className="h-5 w-5 text-green-400" />
-                            )}
-                          </CardTitle>
-                          <CardDescription className="text-slate-300 mt-2">
-                            {planExercise.exercise.description}
-                          </CardDescription>
-                        </div>
-                        <Badge variant="outline" className="border-slate-600 text-slate-300">
-                          {index + 1} of {exercisesByDay[day].length}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {/* Exercise Details */}
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-slate-400">Sets:</span>
-                              <span className="text-white ml-2">{planExercise.sets}</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400">Reps:</span>
-                              <span className="text-white ml-2">{planExercise.reps}</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400">Rest:</span>
-                              <span className="text-white ml-2">{planExercise.rest_seconds}s</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400">Equipment:</span>
-                              <span className="text-white ml-2">{planExercise.exercise.equipment || "None"}</span>
-                            </div>
-                          </div>
-
-                          {/* Instructions */}
-                          {planExercise.exercise.instructions && (
-                            <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3">
-                              <h4 className="text-slate-200 font-medium text-sm mb-2">Instructions</h4>
-                              <p className="text-slate-300 text-sm">{planExercise.exercise.instructions}</p>
-                            </div>
-                          )}
-
-                          {/* Tips */}
-                          {planExercise.exercise.tips && (
-                            <div className="bg-theme-primary/10 border border-theme-primary/20 rounded-lg p-3">
-                              <div className="flex items-start gap-2">
-                                <Info className="h-4 w-4 text-theme-primary mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <h4 className="text-theme-primary font-medium text-sm">Pro Tip</h4>
-                                  <p className="text-slate-300 text-sm mt-1">{planExercise.exercise.tips}</p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Exercise Tracker */}
-                        {isSessionActive && sessionId && (
-                          <ExerciseTracker
-                            exercise={planExercise.exercise}
-                            planExercise={planExercise}
-                            sessionId={sessionId}
-                            onComplete={(sets) => { setLoggedSets((current) => ({ ...current, [planExercise.exercise.id]: sets })); handleExerciseComplete(planExercise.exercise.id) }}
-                            isCompleted={completedExercises.has(`${day}-${planExercise.exercise.id}`)}
-                            initialSets={loggedSets[planExercise.exercise.id]}
-                          />
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-          ))}
+        <Tabs value={currentDay} onValueChange={setCurrentDay}>
+          <TabsList className="mb-6 grid w-full grid-cols-3 bg-slate-800">{days.map((day) => <TabsTrigger key={day} value={day} className="data-[state=active]:bg-theme-primary data-[state=active]:text-white">Day {day}</TabsTrigger>)}</TabsList>
+          {days.map((day) => <TabsContent key={day} value={day}><div className="space-y-4">{(exercisesByDay[day] || []).map((item, index) => {
+            const key = exerciseKey(day, item)
+            const isActive = activeExerciseKey === key
+            const isCompleted = completedExercises.has(key)
+            return <Card key={item.id} className={`border-slate-700 bg-slate-800/50 ${isActive ? "ring-2 ring-theme-primary" : ""}`}>
+              <CardHeader><div className="flex items-start justify-between gap-4"><div><CardTitle className="flex items-center gap-2 text-white">{item.exercise.name}{isCompleted && <CheckCircle className="h-5 w-5 text-green-400" />}</CardTitle><CardDescription className="mt-2 text-slate-300">{item.exercise.description || "Track your working sets and actual reps."}</CardDescription></div><Badge variant="outline" className="shrink-0 border-slate-600 text-slate-300">{index + 1} of {(exercisesByDay[day] || []).length}</Badge></div></CardHeader>
+              <CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4 text-sm text-slate-300 md:grid-cols-4"><span>Sets: <strong className="text-white">{item.sets}</strong></span><span>Reps: <strong className="text-white">{item.reps}</strong></span><span>Rest: <strong className="text-white">{item.rest_seconds}s</strong></span><span>Equipment: <strong className="text-white">{item.exercise.equipment || "None"}</strong></span></div>{item.exercise.instructions && <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-3 text-sm text-slate-300"><strong className="text-slate-200">Instructions</strong><p className="mt-1">{item.exercise.instructions}</p></div>}{item.exercise.tips && <div className="rounded-lg border border-theme-primary/20 bg-theme-primary/10 p-3 text-sm text-slate-300"><div className="flex gap-2"><Info className="mt-0.5 h-4 w-4 shrink-0 text-theme-primary" /><span>{item.exercise.tips}</span></div></div>}
+                {!isSessionActive ? <p className="text-sm text-slate-400">Start the workout to track this exercise.</p> : isActive && sessionId ? <ExerciseTracker exercise={item.exercise} planExercise={item} sessionId={sessionId} isCompleted={isCompleted} initialSets={loggedSets[item.exercise.id]} onComplete={(sets) => { setLoggedSets((current) => ({ ...current, [item.exercise.id]: sets })); setCompletedExercises((current) => new Set(current).add(key)); setActiveExerciseKey(null) }} /> : <Button type="button" onClick={() => selectExercise(day, item)} className="w-full bg-theme-primary text-white">{isCompleted ? "Review exercise" : "Start exercise"}</Button>}
+              </CardContent>
+            </Card>
+          })}</div></TabsContent>)}
         </Tabs>
       </div>
-    </div>
+    </main>
   )
 }
