@@ -104,7 +104,7 @@ export async function createProgram(data: {
 
   try {
     const result = await sql`
-      INSERT INTO workout_plans (name, description, difficulty, duration_weeks, is_public, user_id)
+      INSERT INTO workout_plans (name, description, difficulty_level, duration_weeks, is_public, created_by)
       VALUES (${data.name}, ${data.description}, ${data.difficultyLevel}, ${data.durationWeeks}, ${data.isPublic}, ${user.id})
       RETURNING id
     `
@@ -153,10 +153,10 @@ export async function updateProgram(
 
   try {
     await sql`
-      UPDATE workout_plans 
-      SET name = ${data.name}, description = ${data.description}, difficulty = ${data.difficultyLevel}, 
+      UPDATE workout_plans
+      SET name = ${data.name}, description = ${data.description}, difficulty_level = ${data.difficultyLevel},
           duration_weeks = ${data.durationWeeks}, is_public = ${data.isPublic}
-      WHERE id = ${planId} AND user_id = ${user.id}
+      WHERE id = ${planId} AND created_by = ${user.id}
     `
 
     // Delete existing exercises
@@ -185,6 +185,13 @@ export async function startWorkoutSession(workoutPlanId: string) {
   if (!user) return { success: false, error: "Not authenticated" }
 
   try {
+    const plans = await sql`
+      SELECT id FROM workout_plans
+      WHERE id = ${workoutPlanId} AND (is_public = true OR created_by = ${user.id})
+        AND EXISTS (SELECT 1 FROM workout_plan_exercises wpe JOIN exercises e ON e.id = wpe.exercise_id
+                    WHERE wpe.workout_plan_id = workout_plans.id)
+    `
+    if (plans.length === 0) return { success: false, error: "This workout is unavailable or has no exercises yet." }
     const existing = await sql`
       SELECT id FROM workout_sessions
       WHERE user_id = ${user.id} AND workout_plan_id = ${workoutPlanId} AND completed_at IS NULL
@@ -220,7 +227,7 @@ export async function fetchWorkoutProgress(sessionId: string) {
     console.error("Error fetching workout progress:", error)
     return { success: false, logs: [] }
   }
-} 
+}
 
 export async function createCustomExercise(data: {
   name: string
@@ -253,7 +260,7 @@ export async function endWorkoutSession(sessionId: string, notes?: string) {
 
   try {
     await sql`
-      UPDATE workout_sessions 
+      UPDATE workout_sessions
       SET completed_at = NOW(), notes = ${notes || null}
       WHERE id = ${sessionId} AND user_id = ${user.id}
     `
@@ -314,7 +321,7 @@ export async function fetchSessions() {
   try {
     // Fetch active sessions
     const activeSessions = await sql`
-      SELECT ws.*, wp.name as plan_name, wp.difficulty,
+      SELECT ws.*, wp.name as plan_name, wp.difficulty_level AS difficulty,
         COALESCE((
           SELECT json_agg(json_build_object(
             'id', el.id,
@@ -334,7 +341,7 @@ export async function fetchSessions() {
 
     // Fetch recent completed sessions
     const recentSessions = await sql`
-      SELECT ws.*, wp.name as plan_name, wp.difficulty,
+      SELECT ws.*, wp.name as plan_name, wp.difficulty_level AS difficulty,
         COALESCE((
           SELECT json_agg(json_build_object(
             'id', el.id,
@@ -427,7 +434,7 @@ export async function importGeneratedProgram(generatedProgram: {
 
   try {
     const planResult = await sql`
-      INSERT INTO workout_plans (name, description, difficulty, duration_weeks, user_id, is_public)
+      INSERT INTO workout_plans (name, description, difficulty_level, duration_weeks, created_by, is_public)
       VALUES (${generatedProgram.name}, ${generatedProgram.description}, ${generatedProgram.level.toLowerCase()}, ${generatedProgram.duration_weeks}, ${user.id}, false)
       RETURNING id
     `

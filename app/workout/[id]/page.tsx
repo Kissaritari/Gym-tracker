@@ -21,7 +21,8 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
 
   // Fetch workout plan using Neon SQL
   const workoutPlans = await sql`
-    SELECT * FROM workout_plans WHERE id = ${id}
+    SELECT *, difficulty_level AS difficulty FROM workout_plans
+    WHERE id = ${id} AND (is_public = true OR created_by = ${user.id})
   `
 
   if (!workoutPlans || workoutPlans.length === 0) {

@@ -267,14 +267,14 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                     <div>
                       <span className="text-muted-foreground">Total Sets:</span>
                       <span className="ml-2 font-medium">
-                        {(session.exercise_logs || []).reduce((total, log) => total + (log.sets_completed || 0), 0)}
+                        {(session.exercise_logs || []).reduce((total: number, log: { sets_completed?: number }) => total + (log.sets_completed || 0), 0)}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Total Reps:</span>
                       <span className="ml-2 font-medium">
                         {(session.exercise_logs || []).reduce(
-                          (total, log) => total + (log.reps_completed?.reduce((sum, reps) => sum + reps, 0) || 0),
+                          (total: number, log: { reps_completed?: number[] }) => total + (log.reps_completed?.reduce((sum: number, reps: number) => sum + reps, 0) || 0),
                           0,
                         )}
                       </span>

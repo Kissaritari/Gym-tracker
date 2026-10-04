@@ -7,7 +7,7 @@ export default async function EditProgramPage({ params }: { params: Promise<{ id
   const user = await getSession()
   if (!user) redirect("/auth/login")
   const { id } = await params
-  const programs = await sql`SELECT * FROM workout_plans WHERE id = ${id} AND created_by = ${user.id}`
+  const programs = await sql`SELECT *, difficulty_level AS difficulty FROM workout_plans WHERE id = ${id} AND created_by = ${user.id}`
   if (programs.length === 0) notFound()
   const exercises = await sql`SELECT * FROM exercises ORDER BY name`
   const planExercises = await sql`SELECT * FROM workout_plan_exercises WHERE workout_plan_id = ${id} ORDER BY day_number, order_in_day`

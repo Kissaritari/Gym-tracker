@@ -19,7 +19,7 @@ export default async function ProgramsPage() {
 
   // Fetch all public programs and user's own programs using Neon SQL
   const allPrograms = await sql`
-    SELECT wp.*, 
+    SELECT wp.*, wp.difficulty_level AS difficulty,
       (SELECT COUNT(*) FROM workout_plan_exercises wpe WHERE wpe.workout_plan_id = wp.id) as exercise_count,
       (SELECT COUNT(DISTINCT day_number) FROM workout_plan_exercises wpe WHERE wpe.workout_plan_id = wp.id) as day_count
     FROM workout_plans wp

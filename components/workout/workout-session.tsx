@@ -29,6 +29,8 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
+  const [isFinishing, setIsFinishing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [activeExerciseKey, setActiveExerciseKey] = useState<string | null>(null)
@@ -51,11 +53,20 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
 
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
   const startSession = async () => {
+    if (isStarting || isSessionActive || currentDayExercises.length === 0) return
+    setError(null)
     setIsStarting(true)
     try {
       const result = await startWorkoutSession(workoutPlan.id)
-      if (!result.success || !result.sessionId) return
+      if (!result.success || !result.sessionId) {
+        setError(result.error || "Unable to start workout. Please try again.")
+        return
+      }
       const progressResult = await fetchWorkoutProgress(result.sessionId)
+      if (!progressResult.success) {
+        setError("Unable to load saved workout progress. Please try starting again.")
+        return
+      }
       const sets: Record<string, LoggedSet[]> = {}
       for (const log of progressResult.logs || []) {
         sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
@@ -66,15 +77,27 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
       setLoggedSets(sets)
       setIsSessionActive(true)
       setSessionStartTime(new Date())
+    } catch {
+      setError("Unable to start workout. Please try again.")
     } finally {
       setIsStarting(false)
     }
   }
 
   const finishSession = async () => {
-    if (!sessionId) return
-    const result = await endWorkoutSession(sessionId, `Completed ${completedCount}/${currentDayExercises.length} exercises`)
-    if (result.success) router.push("/dashboard")
+    if (!sessionId || isFinishing) return
+    setError(null)
+    setIsFinishing(true)
+    try {
+      const total = Object.values(exercisesByDay).reduce((count, exercises) => count + exercises.length, 0)
+      const result = await endWorkoutSession(sessionId, `Completed ${completedExercises.size}/${total} exercises`)
+      if (result.success) router.push("/dashboard")
+      else setError(result.error || "Unable to finish workout. Please try again.")
+    } catch {
+      setError("Unable to finish workout. Please try again.")
+    } finally {
+      setIsFinishing(false)
+    }
   }
 
   const selectExercise = (day: string, item: any) => {
@@ -87,20 +110,22 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
       <header className="border-b border-slate-700 bg-slate-800/50">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto flex flex-col gap-4 sm:flex-row sm:items-center justify-between px-4 py-4">
+          <div className="flex flex-wrap items-center gap-4 min-w-0">
             <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white"><Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link></Button>
             <div><h1 className="text-2xl font-bold text-white">{workoutPlan.name}</h1><div className="mt-1 flex items-center gap-2"><Badge className="bg-slate-600 text-white">{workoutPlan.difficulty}</Badge>{isSessionActive && <span className="font-mono text-sm text-theme-primary">{formatTime(elapsedTime)}</span>}</div></div>
           </div>
-          <div className="flex items-center gap-2"><ThemeToggle />{!isSessionActive ? <Button onClick={startSession} disabled={isStarting} className="bg-theme-primary text-white"><Play className="mr-2 h-4 w-4" />{isStarting ? "Starting..." : "Start workout"}</Button> : <Button onClick={finishSession} variant="outline" className="border-slate-600 bg-transparent text-slate-200"><CheckCircle className="mr-2 h-4 w-4" />End workout</Button>}</div>
+          <div className="flex items-center gap-2"><ThemeToggle />{!isSessionActive ? <Button onClick={startSession} disabled={isStarting || currentDayExercises.length === 0} className="bg-theme-primary text-white"><Play className="mr-2 h-4 w-4" />{isStarting ? "Starting..." : "Start workout"}</Button> : <Button onClick={finishSession} disabled={isFinishing} variant="outline" className="border-slate-600 bg-transparent text-slate-200"><CheckCircle className="mr-2 h-4 w-4" />{isFinishing ? "Saving..." : "End workout"}</Button>}</div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {error && <p role="alert" className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-red-300">{error}</p>}
+        {days.length === 0 && <Card className="border-slate-700 bg-slate-800/50"><CardContent className="p-6 text-slate-300">This program has no exercises yet. Choose another program or add exercises before starting a workout.</CardContent></Card>}
         {isSessionActive && <Card className="mb-6 border-slate-700 bg-slate-800/50"><CardContent className="p-6"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold text-white">Day {currentDay} progress</h2><span className="text-slate-300">{completedCount}/{currentDayExercises.length} exercises</span></div><Progress value={progress} className="h-2" /></CardContent></Card>}
 
         <Tabs value={currentDay} onValueChange={setCurrentDay}>
-          <TabsList className="mb-6 grid w-full grid-cols-3 bg-slate-800">{days.map((day) => <TabsTrigger key={day} value={day} className="data-[state=active]:bg-theme-primary data-[state=active]:text-white">Day {day}</TabsTrigger>)}</TabsList>
+          <TabsList aria-label="Workout days" className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 bg-slate-800">{days.map((day) => <TabsTrigger key={day} value={day} disabled={isStarting || isFinishing} className="flex-none min-w-20 data-[state=active]:bg-theme-primary data-[state=active]:text-white">Day {day}</TabsTrigger>)}</TabsList>
           {days.map((day) => <TabsContent key={day} value={day}><div className="space-y-4">{(exercisesByDay[day] || []).map((item, index) => {
             const key = exerciseKey(day, item)
             const isActive = activeExerciseKey === key
