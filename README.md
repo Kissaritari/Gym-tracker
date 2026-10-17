@@ -31,7 +31,7 @@ Continue building your app on:
 
 ## Local setup and workout data
 
-Install dependencies with `npm install`, then run `npm run dev`.
+Install dependencies with `pnpm install --frozen-lockfile`, then run `pnpm dev`. Use the pnpm version pinned in `package.json` (via Corepack, or `npx pnpm@10.34.6`). After changing dependencies, run `pnpm install` and commit both `package.json` and `pnpm-lock.yaml` so Vercel can install with its frozen-lockfile check.
 
 The homepage uses Supabase authentication and saves programs, planned exercises, workout sessions, and exercise logs to Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`. For a new Supabase database, run `scripts/01-create-tables.sql`, `scripts/02-seed-exercises.sql`, and `scripts/04-supabase-workout-integrity.sql`. For an existing Supabase database, run only `scripts/04-supabase-workout-integrity.sql` before deploying this version; it installs permissions, planned-exercise log identities, and the atomic program-creation function. Existing databases do not need reseeding.
 
