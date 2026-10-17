@@ -5,9 +5,9 @@ import { notFound } from "next/navigation"
 import WorkoutSession from "@/components/workout/workout-session"
 
 interface WorkoutPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function WorkoutPage({ params }: WorkoutPageProps) {
@@ -17,9 +17,12 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
     redirect("/auth/login")
   }
 
+  const { id } = await params
+
   // Fetch workout plan using Neon SQL
   const workoutPlans = await sql`
-    SELECT * FROM workout_plans WHERE id = ${params.id}
+    SELECT *, difficulty_level AS difficulty FROM workout_plans
+    WHERE id = ${id} AND (is_public = true OR created_by = ${user.id})
   `
 
   if (!workoutPlans || workoutPlans.length === 0) {
@@ -33,7 +36,7 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
     SELECT wpe.*, e.name, e.description, e.muscle_groups, e.equipment, e.instructions, e.tips
     FROM workout_plan_exercises wpe
     JOIN exercises e ON wpe.exercise_id = e.id
-    WHERE wpe.workout_plan_id = ${params.id}
+    WHERE wpe.workout_plan_id = ${id}
     ORDER BY wpe.day_number, wpe.order_in_day
   `
 

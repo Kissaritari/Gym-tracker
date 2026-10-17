@@ -35,9 +35,9 @@ export async function createUser(
     const passwordHash = await bcrypt.hash(password, 10)
 
     const result = await sql`
-      INSERT INTO users (email, password_hash, name)
+      INSERT INTO users (email, password_hash, full_name)
       VALUES (${email}, ${passwordHash}, ${fullName || null})
-      RETURNING id, email, name, created_at
+      RETURNING id, email, full_name AS name, created_at
     `
 
     if (result.length === 0) {
@@ -56,7 +56,7 @@ export async function createUser(
 export async function verifyUser(email: string, password: string): Promise<{ user?: User; error?: string }> {
   try {
     const result = await sql`
-      SELECT id, email, name, password_hash, created_at
+      SELECT id, email, full_name AS name, password_hash, created_at
       FROM users WHERE email = ${email}
     `
 
@@ -99,8 +99,10 @@ export async function createSession(userId: string): Promise<string> {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    // The v0 preview runs in a cross-site iframe, so development cookies
+    // must be sent in that context. Production stays first-party secure.
+    secure: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "development",
+    sameSite: process.env.NODE_ENV === "development" ? "none" : "lax",
     expires: expiresAt,
     path: "/",
   })
@@ -134,7 +136,7 @@ export async function getSession(): Promise<User | null> {
 
     // Get user data
     const result = await sql`
-      SELECT id, email, name, created_at
+      SELECT id, email, full_name AS name, created_at
       FROM users WHERE id = ${session.user_id}
     `
 

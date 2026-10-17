@@ -11,6 +11,16 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Authentication sessions for the gym_session cookie.
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
 -- Profiles table
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -31,6 +41,8 @@ CREATE TABLE IF NOT EXISTS exercises (
   equipment VARCHAR(100),
   instructions TEXT,
   tips TEXT,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  is_custom BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -76,6 +88,7 @@ CREATE TABLE IF NOT EXISTS exercise_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID REFERENCES workout_sessions(id) ON DELETE CASCADE,
   exercise_id UUID REFERENCES exercises(id) ON DELETE SET NULL,
+  workout_plan_exercise_id UUID REFERENCES workout_plan_exercises(id) ON DELETE SET NULL,
   sets_completed INTEGER,
   reps_completed INTEGER[],
   weight_used DECIMAL(10,2)[],

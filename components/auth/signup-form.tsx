@@ -81,6 +81,20 @@ export default function SignUpForm() {
 
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="fullName" className="text-slate-200">
+              Full name
+            </Label>
+            <Input
+              id="fullName"
+              name="fullName"
+              type="text"
+              placeholder="Your name"
+              autoComplete="name"
+              disabled={isLoading}
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 disabled:opacity-50"
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="email" className="text-slate-200">
               Email
             </Label>
@@ -122,7 +136,10 @@ export default function SignUpForm() {
             )}
           </Button>
         </form>
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-col items-center gap-3 text-center">
+          <Link href="/" className="text-sm text-slate-400 hover:text-white">
+            Back to home
+          </Link>
           <p className="text-slate-300">
             Already have an account?{" "}
             <Link href="/auth/login" className="text-theme-primary hover:text-theme-secondary font-medium">
