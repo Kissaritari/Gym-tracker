@@ -26,6 +26,12 @@ describe("session tracker selection", () => {
     expect([...completedExerciseKeys(["1"], exercises, ["rdl"])]).toEqual(["1-plan-rdl"])
   })
 
+  it("restores one planned row when an exercise occurs on multiple days", () => {
+    const repeated = { ...exercises, "2": [{ id: "plan-rdl-day2", exercise: exercises["1"][1].exercise }] }
+    expect([...completedExerciseKeys(["1", "2"], repeated, [{ exercise_id: "rdl", workout_plan_exercise_id: "plan-rdl-day2" }])]).toEqual(["2-plan-rdl-day2"])
+    expect([...completedExerciseKeys(["1", "2"], repeated, [{ exercise_id: "rdl" }])]).toEqual([])
+  })
+
   it("counts only sets with actual reps", () => {
     expect(validSetCount([{ reps: 8 }, { reps: 0 }, { reps: 10 }])).toBe(2)
   })

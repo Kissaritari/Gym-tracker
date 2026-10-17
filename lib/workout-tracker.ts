@@ -15,17 +15,23 @@ export function findExerciseForKey(
   return exercises.find((item) => exerciseKey(day, item) === key) ?? null
 }
 
+export type ExerciseLogIdentity = { exercise_id: string; workout_plan_exercise_id?: string | null }
+
 export function completedExerciseKeys(
   days: string[],
   exercisesByDay: Record<string, WorkoutExercise[]>,
-  loggedExerciseIds: string[],
+  logs: Array<ExerciseLogIdentity | string>,
 ) {
   const keys = new Set<string>()
-  for (const exerciseId of loggedExerciseIds) {
-    for (const day of days) {
-      const planExercise = (exercisesByDay[day] ?? []).find((item) => item.exercise.id === exerciseId)
-      if (planExercise) keys.add(exerciseKey(day, planExercise))
-    }
+  const planned = days.flatMap((day) => (exercisesByDay[day] || []).map((item) => ({ day, item })))
+  for (const entry of logs) {
+    const log = typeof entry === "string" ? { exercise_id: entry } : entry
+    const candidates = planned.filter(({ item }) => item.exercise.id === log.exercise_id)
+    const matched = log.workout_plan_exercise_id
+      ? candidates.find(({ item }) => item.id === log.workout_plan_exercise_id)
+      : candidates.length === 1 ? candidates[0] : undefined
+    // Older logs cannot safely identify one of several occurrences.
+    if (matched) keys.add(exerciseKey(matched.day, matched.item))
   }
   return keys
 }

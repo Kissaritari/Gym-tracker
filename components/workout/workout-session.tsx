@@ -67,11 +67,17 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
         setError("Unable to load saved workout progress. Please try starting again.")
         return
       }
+      const completed = completedExerciseKeys(days, exercisesByDay, progressResult.logs || [])
       const sets: Record<string, LoggedSet[]> = {}
-      for (const log of progressResult.logs || []) {
-        sets[log.exercise_id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
+      for (const day of days) {
+        for (const item of exercisesByDay[day] || []) {
+          if (!completed.has(exerciseKey(day, item))) continue
+          const log = (progressResult.logs || []).find((entry: any) => entry.workout_plan_exercise_id === item.id || (
+            !entry.workout_plan_exercise_id && entry.exercise_id === item.exercise.id
+          ))
+          if (log) sets[item.id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
+        }
       }
-      const completed = completedExerciseKeys(days, exercisesByDay, (progressResult.logs || []).map((log: any) => log.exercise_id))
       setSessionId(result.sessionId)
       setCompletedExercises(completed)
       setLoggedSets(sets)
@@ -133,7 +139,7 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
             return <Card key={item.id} className={`border-slate-700 bg-slate-800/50 ${isActive ? "ring-2 ring-theme-primary" : ""}`}>
               <CardHeader><div className="flex items-start justify-between gap-4"><div><CardTitle className="flex items-center gap-2 text-white">{item.exercise.name}{isCompleted && <CheckCircle className="h-5 w-5 text-green-400" />}</CardTitle><CardDescription className="mt-2 text-slate-300">{item.exercise.description || "Track your working sets and actual reps."}</CardDescription></div><Badge variant="outline" className="shrink-0 border-slate-600 text-slate-300">{index + 1} of {(exercisesByDay[day] || []).length}</Badge></div></CardHeader>
               <CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4 text-sm text-slate-300 md:grid-cols-4"><span>Sets: <strong className="text-white">{item.sets}</strong></span><span>Reps: <strong className="text-white">{item.reps}</strong></span><span>Rest: <strong className="text-white">{item.rest_seconds}s</strong></span><span>Equipment: <strong className="text-white">{item.exercise.equipment || "None"}</strong></span></div>{item.exercise.instructions && <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-3 text-sm text-slate-300"><strong className="text-slate-200">Instructions</strong><p className="mt-1">{item.exercise.instructions}</p></div>}{item.exercise.tips && <div className="rounded-lg border border-theme-primary/20 bg-theme-primary/10 p-3 text-sm text-slate-300"><div className="flex gap-2"><Info className="mt-0.5 h-4 w-4 shrink-0 text-theme-primary" /><span>{item.exercise.tips}</span></div></div>}
-                {!isSessionActive ? <p className="text-sm text-slate-400">Start the workout to track this exercise.</p> : isActive && sessionId ? <ExerciseTracker exercise={item.exercise} planExercise={item} sessionId={sessionId} isCompleted={isCompleted} initialSets={loggedSets[item.exercise.id]} onComplete={(sets) => { setLoggedSets((current) => ({ ...current, [item.exercise.id]: sets })); setCompletedExercises((current) => new Set(current).add(key)); setActiveExerciseKey(null) }} /> : <Button type="button" onClick={() => selectExercise(day, item)} className="w-full bg-theme-primary text-white">{isCompleted ? "Review exercise" : "Start exercise"}</Button>}
+                {!isSessionActive ? <p className="text-sm text-slate-400">Start the workout to track this exercise.</p> : isActive && sessionId ? <ExerciseTracker exercise={item.exercise} planExercise={item} sessionId={sessionId} isCompleted={isCompleted} initialSets={loggedSets[item.id]} onComplete={(sets) => { setLoggedSets((current) => ({ ...current, [item.id]: sets })); setCompletedExercises((current) => new Set(current).add(key)); setActiveExerciseKey(null) }} /> : <Button type="button" onClick={() => selectExercise(day, item)} className="w-full bg-theme-primary text-white">{isCompleted ? "Review exercise" : "Start exercise"}</Button>}
               </CardContent>
             </Card>
           })}</div></TabsContent>)}

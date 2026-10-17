@@ -70,10 +70,9 @@ export async function deleteProgram(programId: string) {
   }
 
   try {
-    // First delete associated workout plan exercises
-    await sql`DELETE FROM workout_plan_exercises WHERE workout_plan_id = ${programId}`
-    // Then delete the workout plan
-    await sql`DELETE FROM workout_plans WHERE id = ${programId} AND created_by = ${user.id}`
+    // The foreign key cascades only after the owner-qualified deletion succeeds.
+    const deleted = await sql`DELETE FROM workout_plans WHERE id = ${programId} AND created_by = ${user.id} RETURNING id`
+    if (deleted.length === 0) return { success: false, error: "Program not found or not owned by you" }
     revalidatePath("/programs")
     return { success: true }
   } catch (error) {
@@ -152,25 +151,31 @@ export async function updateProgram(
   }
 
   try {
-    await sql`
-      UPDATE workout_plans
-      SET name = ${data.name}, description = ${data.description}, difficulty_level = ${data.difficultyLevel},
-          duration_weeks = ${data.durationWeeks}, is_public = ${data.isPublic}
-      WHERE id = ${planId} AND created_by = ${user.id}
+    // One statement makes ownership, replacement, and rollback atomic.
+    const updated = await sql`
+      WITH owned_plan AS (
+        UPDATE workout_plans
+        SET name = ${data.name}, description = ${data.description}, difficulty_level = ${data.difficultyLevel},
+            duration_weeks = ${data.durationWeeks}, is_public = ${data.isPublic}
+        WHERE id = ${planId} AND created_by = ${user.id}
+        RETURNING id
+      ), removed AS (
+        DELETE FROM workout_plan_exercises
+        WHERE workout_plan_id IN (SELECT id FROM owned_plan)
+        RETURNING id
+      ), added AS (
+        INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_in_day)
+        SELECT owned_plan.id, ex."exerciseId", ex."dayNumber", ex.sets, ex.reps, ex."restSeconds", ex."orderInDay"
+        FROM owned_plan
+        CROSS JOIN jsonb_to_recordset(${JSON.stringify(data.exercises)}::jsonb) AS ex(
+          "exerciseId" uuid, "dayNumber" integer, sets integer, reps text, "restSeconds" integer, "orderInDay" integer
+        )
+        CROSS JOIN (SELECT count(*) FROM removed) cleared
+        RETURNING id
+      )
+      SELECT id FROM owned_plan
     `
-
-    // Delete existing exercises
-    await sql`DELETE FROM workout_plan_exercises WHERE workout_plan_id = ${planId}`
-
-    // Insert new exercises
-    if (data.exercises.length > 0) {
-      for (const ex of data.exercises) {
-        await sql`
-          INSERT INTO workout_plan_exercises (workout_plan_id, exercise_id, day_number, sets, reps, rest_seconds, order_in_day)
-          VALUES (${planId}, ${ex.exerciseId}, ${ex.dayNumber}, ${ex.sets}, ${ex.reps}, ${ex.restSeconds}, ${ex.orderInDay})
-        `
-      }
-    }
+    if (updated.length === 0) return { success: false, error: "Program not found or not owned by you" }
 
     revalidatePath("/programs")
     return { success: true }
@@ -216,7 +221,7 @@ export async function fetchWorkoutProgress(sessionId: string) {
   if (!user) return { success: false, logs: [] }
   try {
     const logs = await sql`
-      SELECT el.exercise_id, el.sets_completed, el.reps_completed, el.weight_used, el.logged_at
+      SELECT el.exercise_id, el.workout_plan_exercise_id, el.sets_completed, el.reps_completed, el.weight_used, el.logged_at
       FROM exercise_logs el
       JOIN workout_sessions ws ON ws.id = el.session_id
       WHERE el.session_id = ${sessionId} AND ws.user_id = ${user.id}
@@ -276,6 +281,7 @@ export async function endWorkoutSession(sessionId: string, notes?: string) {
 export async function logExercise(data: {
   sessionId: string
   exerciseId: string
+  planExerciseId: string
   setsCompleted: number
   repsCompleted: number[]
   weightUsed: number[]
@@ -288,12 +294,15 @@ export async function logExercise(data: {
 
   try {
     const session = await sql`
-      SELECT id FROM workout_sessions WHERE id = ${data.sessionId} AND user_id = ${user.id}
+      SELECT ws.id FROM workout_sessions ws
+      JOIN workout_plan_exercises wpe ON wpe.workout_plan_id = ws.workout_plan_id
+      WHERE ws.id = ${data.sessionId} AND ws.user_id = ${user.id} AND ws.completed_at IS NULL
+        AND wpe.id = ${data.planExerciseId} AND wpe.exercise_id = ${data.exerciseId}
     `
     if (session.length === 0) return { success: false, error: "Session not found" }
 
     const existing = await sql`
-      SELECT id FROM exercise_logs WHERE session_id = ${data.sessionId} AND exercise_id = ${data.exerciseId}
+      SELECT id FROM exercise_logs WHERE session_id = ${data.sessionId} AND workout_plan_exercise_id = ${data.planExerciseId}
     `
     if (existing.length > 0) return { success: false, error: "Exercise already logged" }
 
@@ -302,8 +311,8 @@ export async function logExercise(data: {
     }
 
     await sql`
-      INSERT INTO exercise_logs (session_id, exercise_id, sets_completed, reps_completed, weight_used, notes)
-      VALUES (${data.sessionId}, ${data.exerciseId}, ${data.setsCompleted}, ${data.repsCompleted}, ${data.weightUsed}, ${data.notes || null})
+      INSERT INTO exercise_logs (session_id, exercise_id, workout_plan_exercise_id, sets_completed, reps_completed, weight_used, notes)
+      VALUES (${data.sessionId}, ${data.exerciseId}, ${data.planExerciseId}, ${data.setsCompleted}, ${data.repsCompleted}, ${data.weightUsed}, ${data.notes || null})
     `
     return { success: true }
   } catch (error) {

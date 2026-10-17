@@ -44,7 +44,7 @@ export default function ExerciseTracker({ exercise, planExercise, sessionId, onC
     if (validSets.length === 0 || isCompleted) return
     setError(null)
     setIsLogging(true)
-    const result = await logExercise({ sessionId, exerciseId: exercise.id, setsCompleted: validSets.length, repsCompleted: validSets.map((set) => set.reps), weightUsed: validSets.map((set) => set.weight), notes: `Completed ${validSets.length} sets` })
+    const result = await logExercise({ sessionId, exerciseId: exercise.id, planExerciseId: planExercise.id, setsCompleted: validSets.length, repsCompleted: validSets.map((set) => set.reps), weightUsed: validSets.map((set) => set.weight), notes: `Completed ${validSets.length} sets` })
     if (result.success) onComplete(validSets)
     else setError(result.error || "Could not save this exercise")
     setIsLogging(false)

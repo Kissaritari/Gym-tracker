@@ -33,7 +33,7 @@ Continue building your app on:
 
 Install dependencies with `npm install`, then run `npm run dev`.
 
-The homepage uses Supabase authentication and saves programs, planned exercises, workout sessions, and exercise logs to Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`. For a new Supabase database, run `scripts/01-create-tables.sql` and `scripts/02-seed-exercises.sql`. Existing databases do not need reseeding.
+The homepage uses Supabase authentication and saves programs, planned exercises, workout sessions, and exercise logs to Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`. For a new Supabase database, run `scripts/01-create-tables.sql`, `scripts/02-seed-exercises.sql`, and `scripts/04-supabase-workout-integrity.sql`. For an existing Supabase database, run only `scripts/04-supabase-workout-integrity.sql` before deploying this version; it installs permissions, planned-exercise log identities, and the atomic program-creation function. Existing databases do not need reseeding.
 
 Choose a program in the library, select a day, and press **Start day workout**. Select any exercise to enter reps and weight for its sets, then press **Complete exercise** to save. **Finish workout** saves the session to history. Unfinished sessions can be resumed from Sessions. Custom programs require at least one exercise and use the database-generated program ID.
 
@@ -43,7 +43,8 @@ The legacy `/dashboard` and `/workout` routes use Neon. Configure `NEON_DATABASE
 2. `scripts/02-neon-seed-exercises.sql`
 3. `scripts/03-neon-add-more-programs.sql`
 4. `scripts/04-neon-link-program-exercises.sql`
+5. `scripts/05-neon-workout-integrity.sql`
 
-For an existing database seeded with the Neon scripts, run only step 4 to add missing exercises to default programs. It preserves populated and custom programs and can be rerun.
+For an existing Neon database, run step 5 before deploying this version to add the authentication session table and planned-exercise log identities. Run step 4 if default programs are missing exercises. Both scripts preserve existing data and can be rerun. The authentication migration preserves names from databases using the older `name` column. Historical logs without a planned-exercise identity are restored only when they identify a single unambiguous exercise occurrence.
 
-Run `npm test` for workout selection, start, logging, and failure recovery tests.
+Run `npm test` for workout selection, resume, ownership, authentication, RLS permissions, transaction rollback, and failure recovery tests. Database tests use embedded PostgreSQL and do not access your live databases.

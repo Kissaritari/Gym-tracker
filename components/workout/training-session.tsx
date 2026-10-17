@@ -11,7 +11,7 @@ export type TrainingProgram = { id: string; name: string; description: string; d
 type PlannedExercise = { id: string; exercise_id: string; day_number: number; sets: number; reps: string; rest_seconds: number; exercise: { name: string; instructions?: string } }
 type SetEntry = { reps: number; weight: number }
 
-export function TrainingSession({ program, userId, onFinish, onBack, initialDay }: { program: TrainingProgram; userId: string; onFinish: () => void; onBack: () => void; initialDay?: number }) {
+export function TrainingSession({ program, userId, onFinish, onBack, initialDay, initialSessionId }: { program: TrainingProgram; userId: string; onFinish: () => void; onBack: () => void; initialDay?: number; initialSessionId?: string }) {
   const client = useMemo(() => createClient(), [])
   const [exercises, setExercises] = useState<PlannedExercise[]>([])
   const [day, setDay] = useState(1)
@@ -50,20 +50,26 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay 
     if (pending || session || today.length === 0) return
     setPending(true); setError(null)
     try {
-      const existing = await client.from("workout_sessions").select("id, started_at").eq("user_id", userId).eq("workout_plan_id", program.id).is("completed_at", null).eq("notes", `Day ${day}`).order("started_at", { ascending: false }).limit(1)
+      let query = client.from("workout_sessions").select("id, started_at").eq("user_id", userId).eq("workout_plan_id", program.id).is("completed_at", null)
+      query = initialSessionId ? query.eq("id", initialSessionId) : query.eq("notes", `Day ${day}`)
+      const existing = await query.order("started_at", { ascending: false }).limit(1)
       if (existing.error) throw existing.error
       let current = existing.data?.[0]
+      if (!current && initialSessionId) throw new Error("The selected session is no longer active")
       if (!current) {
         const created = await client.from("workout_sessions").insert({ user_id: userId, workout_plan_id: program.id, notes: `Day ${day}` }).select("id, started_at").single()
         if (created.error) throw created.error
         current = created.data
       }
-      const logs = await client.from("exercise_logs").select("exercise_id, reps_completed, weight_used").eq("session_id", current.id)
+      const logs = await client.from("exercise_logs").select("exercise_id, workout_plan_exercise_id, reps_completed, weight_used").eq("session_id", current.id)
       if (logs.error) throw logs.error
       const done = new Set<string>()
       const saved: Record<string, SetEntry[]> = {}
       for (const item of today) {
-        const log = logs.data?.find((entry) => entry.exercise_id === item.exercise_id)
+        const log = logs.data?.find((entry) => entry.workout_plan_exercise_id === item.id || (
+          !entry.workout_plan_exercise_id && entry.exercise_id === item.exercise_id &&
+          today.filter((candidate) => candidate.exercise_id === item.exercise_id).length === 1
+        ))
         if (log) {
           done.add(item.id)
           saved[item.id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
@@ -91,7 +97,7 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay 
     if (!sets.length) { setError("Enter reps for at least one set before completing this exercise."); return }
     setPending(true); setError(null)
     try {
-      const result = await client.from("exercise_logs").insert({ session_id: session.id, exercise_id: active.exercise_id, sets_completed: sets.length, reps_completed: sets.map((entry) => entry.reps), weight_used: sets.map((entry) => entry.weight) })
+      const result = await client.from("exercise_logs").insert({ session_id: session.id, exercise_id: active.exercise_id, workout_plan_exercise_id: active.id, sets_completed: sets.length, reps_completed: sets.map((entry) => entry.reps), weight_used: sets.map((entry) => entry.weight) })
       if (result.error) throw result.error
       setCompleted((current) => new Set(current).add(active.id))
       setSelected(null)
@@ -122,7 +128,7 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay 
       {session && <p className="mb-4 text-sm text-muted-foreground">{completed.size}/{today.length} exercises completed</p>}
       <div className="flex flex-col gap-3">{today.map((item, index) => <div key={item.id}>
         <button type="button" disabled={!session || pending} onClick={() => select(item)} aria-expanded={selected === item.id} className={`flex w-full items-center justify-between rounded-xl border p-4 text-left disabled:opacity-60 ${selected === item.id || completed.has(item.id) ? "border-primary bg-primary/10" : "hover:bg-muted"}`}>
-          <span className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full border text-xs">{completed.has(item.id) ? <Check className="size-4" /> : index + 1}</span><span><span className="block font-medium">{item.exercise.name}</span><span className="text-xs text-muted-foreground">{item.sets} sets ? {item.reps} reps ? {item.rest_seconds}s rest</span></span></span><ChevronRight className="size-4" />
+          <span className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full border text-xs">{completed.has(item.id) ? <Check className="size-4" /> : index + 1}</span><span><span className="block font-medium">{item.exercise.name}</span><span className="text-xs text-muted-foreground">{item.sets} sets | {item.reps} reps | {item.rest_seconds}s rest</span></span></span><ChevronRight className="size-4" />
         </button>
         {selected === item.id && <div className="mt-2 rounded-xl border p-4">
           {item.exercise.instructions && <p className="mb-4 text-sm text-muted-foreground">{item.exercise.instructions}</p>}

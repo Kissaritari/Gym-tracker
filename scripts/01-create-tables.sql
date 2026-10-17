@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.exercise_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id UUID REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
   exercise_id UUID REFERENCES public.exercises(id) ON DELETE CASCADE,
+  workout_plan_exercise_id UUID REFERENCES public.workout_plan_exercises(id) ON DELETE SET NULL,
   sets_completed INTEGER,
   reps_completed INTEGER[],
   weight_used DECIMAL[],
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS public.exercise_logs (
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workout_plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workout_plan_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workout_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exercise_logs ENABLE ROW LEVEL SECURITY;
 
@@ -92,6 +94,21 @@ CREATE POLICY "Users can create workout plans" ON public.workout_plans
 
 CREATE POLICY "Users can update own workout plans" ON public.workout_plans
   FOR UPDATE USING (created_by = auth.uid());
+
+CREATE POLICY "Users can delete own workout plans" ON public.workout_plans
+  FOR DELETE TO authenticated USING (created_by = auth.uid());
+
+CREATE POLICY "Users can view accessible planned exercises" ON public.workout_plan_exercises
+  FOR SELECT TO authenticated USING (EXISTS (
+    SELECT 1 FROM public.workout_plans wp WHERE wp.id = workout_plan_id AND (wp.is_public OR wp.created_by = auth.uid())
+  ));
+
+CREATE POLICY "Users can manage own planned exercises" ON public.workout_plan_exercises
+  FOR ALL TO authenticated USING (EXISTS (
+    SELECT 1 FROM public.workout_plans wp WHERE wp.id = workout_plan_id AND wp.created_by = auth.uid()
+  )) WITH CHECK (EXISTS (
+    SELECT 1 FROM public.workout_plans wp WHERE wp.id = workout_plan_id AND wp.created_by = auth.uid()
+  ));
 
 CREATE POLICY "Anyone can view exercises" ON public.exercises
   FOR SELECT TO authenticated;
