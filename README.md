@@ -1,5 +1,13 @@
 # Gym app requirements
 
+## Installable PWA
+
+FORM / ONE includes a standalone web app manifest, home-screen icons, and a production service worker. Deploy through the existing Vercel workflow over HTTPS. On supported Chromium browsers, use **Install app** or the browser install menu. On iPhone/iPad, open in Safari and choose **Share → Add to Home Screen**.
+
+For local PWA verification, run `npm run build` then `npm start` and open `http://localhost:3000`. Service worker registration is disabled in development. In browser DevTools → Application, verify the manifest and active service worker, then enable Offline and reload to see the offline screen. Restore the connection and choose **Try again**.
+
+Offline support is a connection notice and a standalone fallback screen; programs, sign-in, AI generation, and workout saves require the network. The service worker never caches authenticated pages, API responses, or workout data, and does not queue saves. Existing session-storage draft recovery remains unchanged. Service-worker updates wait for existing app tabs to close, avoiding forced reloads during a workout.
+
 *Automatically synced with your [v0.app](https://v0.app) deployments*
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/kissaritaris-projects/v0-gym-app-requirements)
