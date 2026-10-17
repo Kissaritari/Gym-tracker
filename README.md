@@ -48,3 +48,11 @@ The legacy `/dashboard` and `/workout` routes use Neon. Configure `NEON_DATABASE
 For an existing Neon database, run step 5 before deploying this version to add the authentication session table and planned-exercise log identities. Run step 4 if default programs are missing exercises. Both scripts preserve existing data and can be rerun. The authentication migration preserves names from databases using the older `name` column. Historical logs without a planned-exercise identity are restored only when they identify a single unambiguous exercise occurrence.
 
 Run `npm test` for workout selection, resume, ownership, authentication, RLS permissions, transaction rollback, and failure recovery tests. Database tests use embedded PostgreSQL and do not access your live databases.
+
+## AI builder and workout recovery
+
+Apply `scripts/05-supabase-generated-programs.sql` after the Supabase scripts above (also for existing installations). It adds an atomic, authenticated import function for generated programs, preserving workout days, exercise order, sets, reps, and rest periods.
+
+For the homepage AI builder, set server-only `GROQ_API_KEY` and `GROQ_MODEL` to your Groq API key and an available text-generation model ID in your account. Do not prefix these variables with `NEXT_PUBLIC_`. Restart or redeploy after setting them. Users can generate a preview from their training preferences, review it, then save it to their Supabase program library. Generation uses the existing exercise catalog; missing configuration and provider errors appear in the builder without saving a partial program.
+
+Email confirmations return to the homepage. Workout drafts stay mounted while switching tabs and are stored per user and session in the browser's session storage. Resume an unfinished session in the same browser tab to recover entered sets after a reload; only completed exercises are saved to the database and available on other devices. If browser storage is unavailable, the workout warns before leaving with unsaved entries. Completed sessions have a **View details** button for saved reps and weights.

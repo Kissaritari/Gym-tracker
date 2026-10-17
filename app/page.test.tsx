@@ -10,6 +10,7 @@ const { client, inserts, state } = vi.hoisted(() => ({
   state: { history: [] as any[], plans: [] as any[], failLoad: false, failCreate: false, failLinks: false, denyDelete: false },
 }))
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => client }))
+vi.mock("@/lib/generate-training-program", () => ({ generateTrainingProgram: vi.fn() }))
 vi.mock("@/components/workout/training-session", () => ({ TrainingSession: ({ program, initialDay, initialSessionId }: any) => <div data-testid="workout" data-day={initialDay} data-session-id={initialSessionId}>{program.id}: {program.name}</div> }))
 const programs = ["First", "Second", "Third"].map((name, i) => ({ id: `real-database-id-${i}`, name, description: "Workout", difficulty_level: "beginner", duration_weeks: 4 }))
 let container: HTMLDivElement
@@ -84,6 +85,17 @@ describe("homepage training flow", () => {
     const third = container.querySelectorAll("article")[2]
     await act(async () => { third.querySelector("button")!.click() })
     expect(container.querySelector('[data-testid="workout"]')?.textContent).toBe("real-database-id-2: Third")
+  })
+
+  it("keeps an active workout mounted when switching tabs", async () => {
+    await tab("programs"); await click("Start")
+    const workout = container.querySelector('[data-testid="workout"]')
+    await tab("overview")
+    expect(container.querySelector('[data-testid="workout"]')).toBe(workout)
+    expect(workout?.parentElement?.hidden).toBe(true)
+    await tab("sessions")
+    expect(container.querySelector('[data-testid="workout"]')).toBe(workout)
+    expect(workout?.parentElement?.hidden).toBe(false)
   })
 
   it("shows stored sessions instead of the fixed lower-body sample workout", async () => {

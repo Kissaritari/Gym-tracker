@@ -28,6 +28,9 @@ beforeAll(async () => {
   await db.exec(readFileSync("scripts/01-create-tables.sql", "utf8"))
   await db.exec(migration)
   await db.exec(migration)
+  const generatedPrograms = readFileSync("scripts/05-supabase-generated-programs.sql", "utf8")
+  await db.exec(generatedPrograms)
+  await db.exec(generatedPrograms)
   await db.exec("GRANT USAGE ON SCHEMA public, auth TO authenticated; GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated")
 }, 30000)
 afterAll(async () => { await db?.close() })
@@ -43,6 +46,39 @@ beforeEach(async () => {
 })
 
 describe("Supabase permissions and atomic program creation", () => {
+  const generated = () => ({ name: "Generated split", description: "Progress weekly", difficulty_level: "intermediate", duration_weeks: 6, exercises: [
+    { exercise_id: exercise, day_number: 1, sets: 4, reps: "6-8", rest_seconds: 90 },
+    { exercise_id: otherExercise, day_number: 1, sets: 3, reps: "10", rest_seconds: 60 },
+    { exercise_id: exercise, day_number: 3, sets: 2, reps: "12", rest_seconds: 45 },
+  ] })
+
+  it("saves a generated split with its prescriptions, order, and authenticated owner", async () => {
+    const result = await db.query<{id: string; created_by: string; is_public: boolean}>("SELECT * FROM create_training_program_details($1::jsonb)", [JSON.stringify(generated())])
+    expect(result.rows[0]).toMatchObject({ created_by: user, is_public: false })
+    const rows = (await db.query("SELECT exercise_id, day_number, sets, reps, rest_seconds, order_in_day FROM workout_plan_exercises WHERE workout_plan_id=$1 ORDER BY day_number, order_in_day", [result.rows[0].id])).rows
+    expect(rows).toEqual(generated().exercises.map((entry, index) => ({ ...entry, order_in_day: index === 1 ? 2 : 1 })))
+  })
+
+  it("rejects invalid generated prescriptions without leaving a program", async () => {
+    for (const change of [{ sets: 0 }, { day_number: 8 }, { rest_seconds: -1 }, { exercise_id: otherSession }, { reps: "" }]) {
+      const program = generated(); Object.assign(program.exercises[1], change)
+      await expect(db.query("SELECT * FROM create_training_program_details($1::jsonb)", [JSON.stringify(program)])).rejects.toThrow()
+    }
+    expect((await db.query("SELECT id FROM workout_plans WHERE name='Generated split'")).rows).toEqual([])
+  })
+
+  it("rolls back the generated program if a planned-exercise insert fails", async () => {
+    await db.exec("RESET ROLE; CREATE FUNCTION reject_generated_exercise() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Injected insert failure'; END; $$; CREATE TRIGGER reject_generated_exercise BEFORE INSERT ON workout_plan_exercises FOR EACH ROW EXECUTE FUNCTION reject_generated_exercise(); SET ROLE authenticated")
+    try {
+      await expect(db.query("SELECT * FROM create_training_program_details($1::jsonb)", [JSON.stringify(generated())])).rejects.toThrow("Injected insert failure")
+      expect((await db.query("SELECT id FROM workout_plans WHERE name='Generated split'")).rows).toEqual([])
+    } finally { await db.exec("RESET ROLE; DROP TRIGGER reject_generated_exercise ON workout_plan_exercises; DROP FUNCTION reject_generated_exercise()") }
+  })
+
+  it("does not let anonymous users import a generated program", async () => {
+    await db.exec("RESET ROLE; SET ROLE anon")
+    await expect(db.query("SELECT * FROM create_training_program_details($1::jsonb)", [JSON.stringify(generated())])).rejects.toThrow(/permission denied/i)
+  })
   it("reads owned and public planned exercises while hiding another user's private plan", async () => {
     const ids = (await db.query<{id: string}>("SELECT id FROM workout_plan_exercises ORDER BY id")).rows.map((row) => row.id)
     expect(ids).toEqual([ownRow, otherRow])

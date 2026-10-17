@@ -34,6 +34,7 @@ async function reps(name: string, value: string) {
 }
 
 beforeEach(async () => {
+  sessionStorage.clear()
   vi.clearAllMocks(); state.failStart = false; state.failSave = false; state.empty = false; state.resume = false; state.logs = []; state.sessions = []; state.rows = rows.map((item) => ({ ...item })); state.failFinish = false; state.failLoad = false; state.failProgress = false
   ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
   from.mockImplementation((table: string) => {
@@ -84,6 +85,36 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function render(initialDay?: number, initialSessionId?: string) { await act(async () => { root.render(<TrainingSession program={program} initialDay={initialDay} initialSessionId={initialSessionId} userId="user" onFinish={finish} onBack={vi.fn()} />) }) }
 
 describe("workout interaction", () => {
+  it("restores unsaved reps after leaving and reopening a session", async () => {
+    await render(); await click("Start day 1 workout"); await click("Lunge"); await reps("Lunge", "9")
+    await act(async () => { root.unmount(); root = createRoot(container) })
+    await render(1, "session"); await click("Start day 1 workout"); await click("Lunge")
+    expect(container.querySelector<HTMLInputElement>('[aria-label="Lunge set 1 reps"]')?.value).toBe("9")
+    await click("Complete exercise"); await click("Finish workout")
+    expect(sessionStorage.getItem("workout-drafts:user:session")).toBeNull()
+  })
+
+  it("locks a resumed session's day and trusts its stored day over the supplied day", async () => {
+    state.rows.push({ ...rows[0], id: "day-two", day_number: 2, exercise: { name: "Day two squat" } })
+    state.sessions = [{ id: "selected", user_id: "user", workout_plan_id: program.id, completed_at: null, notes: "Day 2" }]
+    await render(1, "selected")
+    expect(button("Day 1").disabled).toBe(true)
+    expect(button("Day 2").disabled).toBe(true)
+    await click("Start day 1 workout")
+    expect(button("Day two squat").disabled).toBe(false)
+    await click("Finish workout")
+    expect(updates).toHaveBeenCalledWith("workout_sessions", expect.objectContaining({ notes: "Day 2: Completed 0/1 exercises" }))
+  })
+
+  it("keeps saved logs authoritative over stale browser drafts", async () => {
+    state.resume = true
+    sessionStorage.setItem("workout-drafts:user:session", JSON.stringify({ "plan-2": [{ reps: 99, weight: 99 }] }))
+    state.logs = [{ exercise_id: rows[2].exercise_id, workout_plan_exercise_id: rows[2].id, reps_completed: [8], weight_used: [20] }]
+    await render(); await click("Start day 1 workout"); await click("Lunge")
+    expect(container.querySelector<HTMLInputElement>('[aria-label="Lunge set 1 reps"]')?.value).toBe("8")
+    expect(container.querySelector<HTMLInputElement>('[aria-label="Lunge set 1 weight"]')?.value).toBe("20")
+  })
+
   it("starts the selected program and lets every exercise open independently", async () => {
     await render()
     expect(button("Lunge").disabled).toBe(true)

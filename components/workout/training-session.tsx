@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Check, ChevronRight } from "lucide-react"
+import { readWorkoutDrafts, writeWorkoutDrafts } from "@/lib/workout-drafts"
 
 export type TrainingProgram = { id: string; name: string; description: string; difficulty_level: string; duration_weeks: number; is_public?: boolean }
 type PlannedExercise = { id: string; exercise_id: string; day_number: number; sets: number; reps: string; rest_seconds: number; exercise: { name: string; instructions?: string } }
@@ -22,9 +23,24 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
   const [selected, setSelected] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, SetEntry[]>>({})
   const [completed, setCompleted] = useState<Set<string>>(new Set())
+  const [draftStorageFailed, setDraftStorageFailed] = useState(false)
   const days = [...new Set(exercises.map((item) => item.day_number))].sort((a, b) => a - b)
   const today = exercises.filter((item) => item.day_number === day)
   const active = today.find((item) => item.id === selected)
+  const hasUnsavedSets = Object.entries(drafts).some(([id, sets]) => !completed.has(id) && sets.some((entry) => entry.reps > 0 || entry.weight > 0))
+
+  useEffect(() => {
+    if (!session) return
+    const unsaved = Object.fromEntries(Object.entries(drafts).filter(([id]) => !completed.has(id)))
+    setDraftStorageFailed(!writeWorkoutDrafts(userId, session.id, unsaved))
+  }, [drafts, completed, session, userId])
+
+  useEffect(() => {
+    if (!hasUnsavedSets || !draftStorageFailed) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = "" }
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [hasUnsavedSets, draftStorageFailed])
 
   useEffect(() => {
     let cancelled = false
@@ -50,32 +66,37 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
     if (pending || session || today.length === 0) return
     setPending(true); setError(null)
     try {
-      let query = client.from("workout_sessions").select("id, started_at").eq("user_id", userId).eq("workout_plan_id", program.id).is("completed_at", null)
+      let query = client.from("workout_sessions").select("id, started_at, notes").eq("user_id", userId).eq("workout_plan_id", program.id).is("completed_at", null)
       query = initialSessionId ? query.eq("id", initialSessionId) : query.eq("notes", `Day ${day}`)
       const existing = await query.order("started_at", { ascending: false }).limit(1)
       if (existing.error) throw existing.error
       let current = existing.data?.[0]
       if (!current && initialSessionId) throw new Error("The selected session is no longer active")
       if (!current) {
-        const created = await client.from("workout_sessions").insert({ user_id: userId, workout_plan_id: program.id, notes: `Day ${day}` }).select("id, started_at").single()
+        const created = await client.from("workout_sessions").insert({ user_id: userId, workout_plan_id: program.id, notes: `Day ${day}` }).select("id, started_at, notes").single()
         if (created.error) throw created.error
         current = created.data
       }
+      const savedDay = Number(current.notes?.match(/^Day (\d+)(?:\b|:)/)?.[1])
+      if (!days.includes(savedDay)) throw new Error("The session's workout day is unavailable")
+      const sessionExercises = exercises.filter((item) => item.day_number === savedDay)
       const logs = await client.from("exercise_logs").select("exercise_id, workout_plan_exercise_id, reps_completed, weight_used").eq("session_id", current.id)
       if (logs.error) throw logs.error
       const done = new Set<string>()
       const saved: Record<string, SetEntry[]> = {}
-      for (const item of today) {
+      const storedDrafts = readWorkoutDrafts(userId, current.id)
+      for (const item of sessionExercises) {
+        if (storedDrafts[item.id]) saved[item.id] = storedDrafts[item.id]
         const log = logs.data?.find((entry) => entry.workout_plan_exercise_id === item.id || (
           !entry.workout_plan_exercise_id && entry.exercise_id === item.exercise_id &&
-          today.filter((candidate) => candidate.exercise_id === item.exercise_id).length === 1
+          exercises.filter((candidate) => candidate.exercise_id === item.exercise_id).length === 1
         ))
         if (log) {
           done.add(item.id)
           saved[item.id] = (log.reps_completed || []).map((reps: number, index: number) => ({ reps, weight: Number(log.weight_used?.[index] || 0) }))
         }
       }
-      setCompleted(done); setDrafts(saved); setSession(current)
+      setDay(savedDay); setSelected(null); setCompleted(done); setDrafts(saved); setSession(current)
     } catch {
       setError("Could not start your workout. Please try again.")
     } finally { setPending(false) }
@@ -107,7 +128,7 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
 
   async function finish() {
     if (!session || pending) return
-    if (Object.entries(drafts).some(([id, sets]) => !completed.has(id) && sets.some((entry) => entry.reps > 0))) {
+    if (hasUnsavedSets) {
       setError("Complete the exercise with your entered sets before finishing the workout.")
       return
     }
@@ -115,6 +136,7 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
     try {
       const result = await client.from("workout_sessions").update({ completed_at: new Date().toISOString(), notes: `Day ${day}: Completed ${completed.size}/${today.length} exercises` }).eq("id", session.id).eq("user_id", userId).select("id").single()
       if (result.error) throw result.error
+      writeWorkoutDrafts(userId, session.id, {})
       onFinish()
     } catch { setError("Could not finish your workout. Please try again.") }
     finally { setPending(false) }
@@ -123,8 +145,9 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
   return <section className="rounded-2xl border bg-card p-6" aria-busy={loading || pending}>
     <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-xs uppercase tracking-widest text-primary">{session ? `Day ${day} workout` : "Choose your workout day"}</p><h2 className="mt-2 text-2xl font-semibold">{program.name}</h2></div><Badge>{session ? "In progress" : "Ready to start"}</Badge></div>
     {error && <p role="alert" className="mt-4 rounded-lg border border-destructive/50 p-3 text-sm">{error}</p>}
+    {draftStorageFailed && hasUnsavedSets && <p role="alert">Your browser could not keep a draft. Complete your exercise before leaving this workout.</p>}
     {loading ? <p className="mt-6 text-muted-foreground">Loading exercises...</p> : !exercises.length ? <p className="mt-6 text-muted-foreground">This program has no exercises yet. Choose a program with exercises to start a workout.</p> : <>
-      <div className="my-6 flex flex-wrap gap-2" aria-label="Workout days">{days.map((value) => <Button key={value} variant={day === value ? "default" : "outline"} disabled={!!session || pending} onClick={() => { setDay(value); setSelected(null) }}>Day {value}</Button>)}</div>
+      <div className="my-6 flex flex-wrap gap-2" aria-label="Workout days">{days.map((value) => <Button key={value} variant={day === value ? "default" : "outline"} disabled={!!initialSessionId || !!session || pending} onClick={() => { setDay(value); setSelected(null) }}>Day {value}</Button>)}</div>
       {session && <p className="mb-4 text-sm text-muted-foreground">{completed.size}/{today.length} exercises completed</p>}
       <div className="flex flex-col gap-3">{today.map((item, index) => <div key={item.id}>
         <button type="button" disabled={!session || pending} onClick={() => select(item)} aria-expanded={selected === item.id} className={`flex w-full items-center justify-between rounded-xl border p-4 text-left disabled:opacity-60 ${selected === item.id || completed.has(item.id) ? "border-primary bg-primary/10" : "hover:bg-muted"}`}>
@@ -138,6 +161,9 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
       </div>)}</div>
       <Button className="mt-6 w-full" disabled={pending} onClick={session ? finish : start}>{pending ? "Saving..." : session ? "Finish workout" : `Start day ${day} workout`}</Button>
     </>}
-    <Button variant="ghost" className="mt-4" disabled={pending} onClick={onBack}>{"Back to programs"}</Button>
+    <Button variant="ghost" className="mt-4" disabled={pending} onClick={() => {
+      if (hasUnsavedSets && draftStorageFailed && !window.confirm("Your entered sets could not be kept. Leave and discard them?")) return
+      onBack()
+    }}>{"Back to programs"}</Button>
   </section>
 }
