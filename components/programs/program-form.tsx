@@ -38,7 +38,7 @@ interface ProgramFormProps {
   initialData?: any
 }
 
-export function ProgramForm({ exercises, userId, initialData }: ProgramFormProps) {
+export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
   const router = useRouter()
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>(exercises)
   const [showCustomExercise, setShowCustomExercise] = useState(false)

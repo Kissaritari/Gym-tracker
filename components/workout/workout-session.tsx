@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { endWorkoutSession, fetchWorkoutProgress, startWorkoutSession } from "@/lib/actions"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import ExerciseTracker from "./exercise-tracker"
-import { completedExerciseKeys, exerciseKey, findExerciseForKey } from "@/lib/workout-tracker"
+import { completedExerciseKeys, exerciseKey } from "@/lib/workout-tracker"
 
 interface WorkoutSessionProps {
   workoutPlan: any
@@ -37,7 +37,7 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set())
   const [loggedSets, setLoggedSets] = useState<Record<string, LoggedSet[]>>({})
 
-  const currentDayExercises = exercisesByDay[currentDay] || []
+  const currentDayExercises = useMemo(() => exercisesByDay[currentDay] || [], [exercisesByDay, currentDay])
   const completedCount = currentDayExercises.filter((item) => completedExercises.has(`${currentDay}-${item.id}`)).length
   const progress = currentDayExercises.length ? (completedCount / currentDayExercises.length) * 100 : 0
 
@@ -111,7 +111,6 @@ export default function WorkoutSession({ workoutPlan, exercisesByDay }: WorkoutS
     setActiveExerciseKey(exerciseKey(day, item))
   }
 
-  const activeExercise = findExerciseForKey(currentDayExercises, currentDay, activeExerciseKey)
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
