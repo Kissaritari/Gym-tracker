@@ -2,6 +2,12 @@
 
 ## Installable PWA
 
+### Languages
+
+Use the **Language / Kieli** selector at the top of any page to switch between **English** and **Suomi**. The choice is stored on your device and also applies to the offline screen. Switching does not reload the page or discard an active workout. Application labels, errors, validation, accessibility text, dates, and numbers are localized; user-created program names, descriptions, and notes retain their original content.
+
+Translations live in `lib/i18n/fi.ts`, with English source messages as keys. Render UI messages through `T` or `useI18n().t`; use placeholders for dynamic messages and keep stored database enum values and generated session identifiers language-independent. `LocalDate`, `LocalNumber`, and `SessionNote` format their presentation. Run `npm test` to check language switching, persistence, validation, and translation placeholders.
+
 FORM / ONE includes a standalone web app manifest, home-screen icons, and a production service worker. Deploy through the existing Vercel workflow over HTTPS. On supported Chromium browsers, use **Install app** or the browser install menu. On iPhone/iPad, open in Safari and choose **Share → Add to Home Screen**.
 
 For local PWA verification, run `npm run build` then `npm start` and open `http://localhost:3000`. Service worker registration is disabled in development. In browser DevTools → Application, verify the manifest and active service worker, then enable Offline and reload to see the offline screen. Restore the connection and choose **Try again**.

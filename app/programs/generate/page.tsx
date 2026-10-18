@@ -1,3 +1,4 @@
+import { T } from "@/lib/i18n/context"
 import { Suspense } from "react"
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
@@ -13,13 +14,11 @@ export default async function GenerateProgramPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-theme-primary mb-2">AI Program Generator</h1>
-        <p className="text-muted-foreground">
-          Create a personalized workout program tailored to your goals, experience level, and preferences.
-        </p>
+        <h1 className="text-3xl font-bold text-theme-primary mb-2"><T text={"AI Program Generator"} /></h1>
+        <p className="text-muted-foreground"><T text={"Create a personalized workout program tailored to your goals, experience level, and preferences."} /></p>
       </div>
 
-      <Suspense fallback={<div>Loading generator...</div>}>
+      <Suspense fallback={<div><T text={"Loading generator..."} /></div>}>
         <ProgramGeneratorForm />
       </Suspense>
     </div>

@@ -1,10 +1,10 @@
 // Only the public offline screen is cached. Account pages, API responses,
 // server actions and workout data always go directly to the network.
-const CACHE = "form-one-offline-v1"
+const CACHE = "form-one-offline-v2"
 const OFFLINE = "/offline.html"
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.add(OFFLINE)))
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll([OFFLINE, "/offline-language.js"])))
   // Let existing tabs finish their workouts before activating an update.
 })
 
@@ -18,6 +18,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event
+  if (request.method === "GET" && new URL(request.url).origin === self.location.origin && new URL(request.url).pathname === "/offline-language.js") {
+    event.respondWith(caches.open(CACHE).then(async (cache) => (await cache.match("/offline-language.js")) || fetch(request)))
+    return
+  }
   if (request.method !== "GET" || request.mode !== "navigate" || new URL(request.url).origin !== self.location.origin) return
   event.respondWith(fetch(request).catch(async () => {
     const cache = await caches.open(CACHE)

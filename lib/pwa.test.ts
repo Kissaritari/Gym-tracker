@@ -6,7 +6,7 @@ import manifest from "../app/manifest"
 function worker(fetch = vi.fn()) {
   const handlers: Record<string, (event: any) => void> = {}
   const fallback = new Response("offline")
-  const cache = { add: vi.fn(), match: vi.fn().mockResolvedValue(fallback) }
+  const cache = { addAll: vi.fn(), match: vi.fn().mockResolvedValue(fallback) }
   const caches = { open: vi.fn().mockResolvedValue(cache), keys: vi.fn().mockResolvedValue([]), delete: vi.fn() }
   runInNewContext(readFileSync("public/sw.js", "utf8"), {
     self: { addEventListener: (name: string, handler: (event: any) => void) => { handlers[name] = handler }, location: { origin: "https://gym.example" }, clients: { claim: vi.fn() } },
@@ -16,6 +16,22 @@ function worker(fetch = vi.fn()) {
 }
 
 describe("PWA", () => {
+  it("precaches the offline page and its language script together", async () => {
+    const { handlers, cache } = worker()
+    const waitUntil = vi.fn()
+    handlers.install({ waitUntil })
+    await waitUntil.mock.calls[0][0]
+    expect(cache.addAll).toHaveBeenCalledWith(["/offline.html", "/offline-language.js"])
+  })
+
+  it("serves the language script from cache without a connection", async () => {
+    const fetch = vi.fn().mockRejectedValue(new Error("offline"))
+    const { handlers, fallback } = worker(fetch)
+    const respondWith = vi.fn()
+    handlers.fetch({ request: { method: "GET", mode: "no-cors", url: "https://gym.example/offline-language.js" }, respondWith })
+    expect(await respondWith.mock.calls[0][0]).toBe(fallback)
+    expect(fetch).not.toHaveBeenCalled()
+  })
   it("ships correctly sized PNG install icons", () => {
     for (const icon of manifest().icons!) {
       const data = readFileSync(`public${icon.src}`)

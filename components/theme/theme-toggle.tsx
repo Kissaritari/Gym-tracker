@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,17 +24,18 @@ const colorThemes = [
 ] as const
 
 export function ThemeToggle() {
+  const { t } = useI18n()
   const { theme, colorTheme, setTheme, setColorTheme } = useTheme()
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="border-slate-600 bg-transparent">
+        <Button aria-label={t("Theme Settings")} variant="outline" size="sm" className="border-slate-600 bg-transparent">
           <Palette className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 bg-slate-800 border-slate-700">
-        <DropdownMenuLabel className="text-slate-200">Theme Settings</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-slate-200"><T text={"Theme Settings"} /></DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-slate-700" />
 
         {/* Light/Dark Toggle */}
@@ -39,21 +43,17 @@ export function ThemeToggle() {
           onClick={() => setTheme("light")}
           className="text-slate-200 hover:bg-slate-700 focus:bg-slate-700"
         >
-          <Sun className="h-4 w-4 mr-2" />
-          Light
-          {theme === "light" && <Check className="h-4 w-4 ml-auto" />}
+          <Sun className="h-4 w-4 mr-2" /><T text={"Light"} />{theme === "light" && <Check className="h-4 w-4 ml-auto" />}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => setTheme("dark")}
           className="text-slate-200 hover:bg-slate-700 focus:bg-slate-700"
         >
-          <Moon className="h-4 w-4 mr-2" />
-          Dark
-          {theme === "dark" && <Check className="h-4 w-4 ml-auto" />}
+          <Moon className="h-4 w-4 mr-2" /><T text={"Dark"} />{theme === "dark" && <Check className="h-4 w-4 ml-auto" />}
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-slate-700" />
-        <DropdownMenuLabel className="text-slate-200">Color Theme</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-slate-200"><T text={"Color Theme"} /></DropdownMenuLabel>
 
         {/* Color Themes */}
         {colorThemes.map((ct) => (
@@ -63,7 +63,7 @@ export function ThemeToggle() {
             className="text-slate-200 hover:bg-slate-700 focus:bg-slate-700"
           >
             <div className={`h-4 w-4 rounded-full mr-2 ${ct.color}`} />
-            {ct.label}
+            <T>{ct.label}</T>
             {colorTheme === ct.name && <Check className="h-4 w-4 ml-auto" />}
           </DropdownMenuItem>
         ))}

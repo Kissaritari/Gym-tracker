@@ -1,6 +1,7 @@
 'use client'
 
 import { useToast } from '@/hooks/use-toast'
+import { T } from '@/lib/i18n/context'
 import {
   Toast,
   ToastClose,
@@ -19,9 +20,9 @@ export function Toaster() {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
+              {title && <ToastTitle><T>{title}</T></ToastTitle>}
               {description && (
-                <ToastDescription>{description}</ToastDescription>
+                <ToastDescription><T>{description}</T></ToastDescription>
               )}
             </div>
             {action}

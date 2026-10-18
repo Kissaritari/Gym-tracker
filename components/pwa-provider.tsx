@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
@@ -9,6 +12,8 @@ type InstallEvent = Event & {
 }
 
 export function PwaProvider() {
+  const { t } = useI18n()
+
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null)
   const [ios, setIos] = useState(false)
   const [dismissed, setDismissed] = useState(false)
@@ -52,11 +57,11 @@ export function PwaProvider() {
   }
 
   return <>
-    {offline && <div role="status" className="border-b border-border bg-muted px-4 py-2 text-center text-sm">You’re offline. Reconnect to load programs and save workouts.</div>}
-    {!dismissed && (installEvent || ios) && <aside aria-label="Install FORM / ONE" className="border-b border-border bg-card px-4 py-3 flex flex-wrap items-center justify-center gap-3 text-sm">
-      <span>{ios ? "Install FORM / ONE: in Safari, tap Share, then Add to Home Screen." : "Keep FORM / ONE on your home screen."}</span>
-      {installEvent && <Button size="sm" onClick={() => { void install().catch(console.error) }}>Install app</Button>}
-      <Button size="sm" variant="ghost" onClick={() => setDismissed(true)} aria-label="Dismiss installation message">Not now</Button>
+    {offline && <div role="status" className="border-b border-border bg-muted px-4 py-2 text-center text-sm"><T text={"You’re offline. Reconnect to load programs and save workouts."} /></div>}
+    {!dismissed && (installEvent || ios) && <aside aria-label={t("Install FORM / ONE")} className="border-b border-border bg-card px-4 py-3 flex flex-wrap items-center justify-center gap-3 text-sm">
+      <span><T>{ios ? "Install FORM / ONE: in Safari, tap Share, then Add to Home Screen." : "Keep FORM / ONE on your home screen."}</T></span>
+      {installEvent && <Button size="sm" onClick={() => { void install().catch(console.error) }}><T text={"Install app"} /></Button>}
+      <Button size="sm" variant="ghost" onClick={() => setDismissed(true)} aria-label={t("Dismiss installation message")}><T text={"Not now"} /></Button>
     </aside>}
   </>
 }
