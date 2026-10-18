@@ -1,3 +1,4 @@
+import { T } from "@/lib/i18n/context"
 import { Suspense } from "react"
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
@@ -18,18 +19,14 @@ export default async function SessionsPage() {
       <div className="container mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" asChild className="mb-6 text-slate-300 hover:text-white">
           <Link href="/dashboard">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to dashboard
-          </Link>
+            <ArrowLeft className="mr-2 h-4 w-4" /><T text={"Back to dashboard"} /></Link>
         </Button>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-theme-primary mb-2">Session Tracking</h1>
-          <p className="text-muted-foreground">
-            Monitor your workout sessions, track progress, and analyze your training patterns.
-          </p>
+          <h1 className="text-3xl font-bold text-theme-primary mb-2"><T text={"Session Tracking"} /></h1>
+          <p className="text-muted-foreground"><T text={"Monitor your workout sessions, track progress, and analyze your training patterns."} /></p>
         </div>
 
-        <Suspense fallback={<div>Loading sessions...</div>}>
+        <Suspense fallback={<div><T text={"Loading sessions..."} /></div>}>
           <SessionTracker userId={user.id} />
         </Suspense>
       </div>

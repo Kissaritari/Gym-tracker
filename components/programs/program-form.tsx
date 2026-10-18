@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import type React from "react"
 
 import { useState } from "react"
@@ -39,6 +42,8 @@ interface ProgramFormProps {
 }
 
 export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
+  const { t } = useI18n()
+
   const router = useRouter()
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>(exercises)
   const [showCustomExercise, setShowCustomExercise] = useState(false)
@@ -149,30 +154,24 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
       {/* Basic Info */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
-          <CardTitle className="text-white">Program Details</CardTitle>
-          <CardDescription className="text-slate-300">
-            Set up the basic information for your workout program
-          </CardDescription>
+          <CardTitle className="text-white"><T text={"Program Details"} /></CardTitle>
+          <CardDescription className="text-slate-300"><T text={"Set up the basic information for your workout program"} /></CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name" className="text-slate-200">
-                Program Name
-              </Label>
+              <Label htmlFor="name" className="text-slate-200"><T text={"Program Name"} /></Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="bg-slate-700 border-slate-600 text-white"
-                placeholder="e.g., My Custom Workout"
+                placeholder={t("e.g., My Custom Workout")}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="difficulty" className="text-slate-200">
-                Difficulty Level
-              </Label>
+              <Label htmlFor="difficulty" className="text-slate-200"><T text={"Difficulty Level"} /></Label>
               <Select
                 value={formData.difficultyLevel}
                 onValueChange={(value) => setFormData({ ...formData, difficultyLevel: value })}
@@ -181,33 +180,29 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-slate-600">
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="beginner"><T text={"Beginner"} /></SelectItem>
+                  <SelectItem value="intermediate"><T text={"Intermediate"} /></SelectItem>
+                  <SelectItem value="advanced"><T text={"Advanced"} /></SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div>
-            <Label htmlFor="description" className="text-slate-200">
-              Description
-            </Label>
+            <Label htmlFor="description" className="text-slate-200"><T text={"Description"} /></Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="bg-slate-700 border-slate-600 text-white"
-              placeholder="Describe your workout program..."
+              placeholder={t("Describe your workout program...")}
               rows={3}
             />
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="duration" className="text-slate-200">
-                Duration (weeks)
-              </Label>
+              <Label htmlFor="duration" className="text-slate-200"><T text={"Duration (weeks)"} /></Label>
               <Input
                 id="duration"
                 type="number"
@@ -224,9 +219,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                 checked={formData.isPublic}
                 onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
               />
-              <Label htmlFor="public" className="text-slate-200">
-                Make program public
-              </Label>
+              <Label htmlFor="public" className="text-slate-200"><T text={"Make program public"} /></Label>
             </div>
           </div>
         </CardContent>
@@ -237,44 +230,36 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-white">Exercises</CardTitle>
-              <CardDescription className="text-slate-300">
-                Add exercises to your program organized by day
-              </CardDescription>
+              <CardTitle className="text-white"><T text={"Exercises"} /></CardTitle>
+              <CardDescription className="text-slate-300"><T text={"Add exercises to your program organized by day"} /></CardDescription>
             </div>
             <Button
               type="button"
               onClick={addExercise}
               className="bg-theme-primary hover:bg-theme-secondary text-white"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Exercise
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setShowCustomExercise((value) => !value)} className="border-theme-primary text-theme-primary bg-transparent">
-              Create custom
-            </Button>
+              <Plus className="h-4 w-4 mr-2" /><T text={"Add Exercise"} /></Button>
+            <Button type="button" variant="outline" onClick={() => setShowCustomExercise((value) => !value)} className="border-theme-primary text-theme-primary bg-transparent"><T text={"Create custom"} /></Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {showCustomExercise && <div className="rounded-lg border border-theme-primary/40 bg-theme-primary/10 p-4 space-y-3" aria-busy={isCreatingExercise}>
-            <h3 className="font-semibold text-white">Create custom exercise</h3>
+            <h3 className="font-semibold text-white"><T text={"Create custom exercise"} /></h3>
             <div className="grid md:grid-cols-2 gap-3">
               {([['name','Name'],['equipment','Equipment'],['muscleGroups','Muscle groups (comma separated)'],['description','Description'],['instructions','Instructions'],['tips','Tips']] as const).map(([field, label]) => <div key={field}>
-                <Label className="text-slate-200" htmlFor={`custom-${field}`}>{label}</Label>
+                <Label className="text-slate-200" htmlFor={`custom-${field}`}><T>{label}</T></Label>
                 <Input id={`custom-${field}`} value={customExercise[field]} onChange={(e) => setCustomExercise((current) => ({ ...current, [field]: e.target.value }))} className="bg-slate-700 border-slate-600 text-white" />
               </div>)}
             </div>
-            <Button type="button" onClick={saveCustomExercise} disabled={isCreatingExercise || !customExercise.name.trim()} className="bg-theme-primary text-white">{isCreatingExercise ? "Creating..." : "Save custom exercise"}</Button>
+            <Button type="button" onClick={saveCustomExercise} disabled={isCreatingExercise || !customExercise.name.trim()} className="bg-theme-primary text-white"><T>{isCreatingExercise ? "Creating..." : "Save custom exercise"}</T></Button>
           </div>}
           {programExercises.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
-              No exercises added yet. Click "Add Exercise" to get started.
-            </div>
+            <div className="text-center py-8 text-slate-400"><T text={"No exercises added yet. Click \"Add Exercise\" to get started."} /></div>
           ) : (
             <div className="space-y-4">
               {Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => (
                 <div key={day} className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white border-b border-slate-600 pb-2">Day {day}</h3>
+                  <h3 className="text-lg font-semibold text-white border-b border-slate-600 pb-2"><T text={"Day "} />{day}</h3>
                   {programExercises
                     .filter((ex) => ex.dayNumber === day)
                     .map((exercise) => {
@@ -285,13 +270,13 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                         <div key={globalIndex} className="bg-slate-700/50 border border-slate-600 rounded-lg p-4">
                           <div className="grid md:grid-cols-6 gap-4 items-end">
                             <div className="md:col-span-2">
-                              <Label className="text-slate-200">Exercise</Label>
+                              <Label className="text-slate-200"><T text={"Exercise"} /></Label>
                               <Select
                                 value={exercise.exerciseId}
                                 onValueChange={(value) => updateExercise(globalIndex, "exerciseId", value)}
                               >
                                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                                  <SelectValue placeholder="Select exercise" />
+                                  <SelectValue placeholder={t("Select exercise")} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-700 border-slate-600">
                                   {availableExercises.map((ex) => (
@@ -309,7 +294,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                                       variant="outline"
                                       className="text-xs border-slate-500 text-slate-300"
                                     >
-                                      {muscle}
+                                      <T>{muscle}</T>
                                     </Badge>
                                   ))}
                                 </div>
@@ -317,7 +302,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                             </div>
 
                             <div>
-                              <Label className="text-slate-200">Day</Label>
+                              <Label className="text-slate-200"><T text={"Day"} /></Label>
                               <Select
                                 value={exercise.dayNumber.toString()}
                                 onValueChange={(value) =>
@@ -329,8 +314,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-700 border-slate-600">
                                   {Array.from({ length: 7 }, (_, i) => i + 1).map((d) => (
-                                    <SelectItem key={d} value={d.toString()}>
-                                      Day {d}
+                                    <SelectItem key={d} value={d.toString()}><T text={"Day "} />{d}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -338,7 +322,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                             </div>
 
                             <div>
-                              <Label className="text-slate-200">Sets</Label>
+                              <Label className="text-slate-200"><T text={"Sets"} /></Label>
                               <Input
                                 type="number"
                                 min="1"
@@ -352,18 +336,18 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                             </div>
 
                             <div>
-                              <Label className="text-slate-200">Reps</Label>
+                              <Label className="text-slate-200"><T text={"Reps"} /></Label>
                               <Input
                                 value={exercise.reps}
                                 onChange={(e) => updateExercise(globalIndex, "reps", e.target.value)}
                                 className="bg-slate-700 border-slate-600 text-white"
-                                placeholder="8-12"
+                                placeholder={t("8-12")}
                               />
                             </div>
 
                             <div className="flex items-end gap-2">
                               <div className="flex-1">
-                                <Label className="text-slate-200">Rest (sec)</Label>
+                                <Label className="text-slate-200"><T text={"Rest (sec)"} /></Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -379,6 +363,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
                                 type="button"
                                 size="sm"
                                 variant="outline"
+                                aria-label={t("Remove exercise")}
                                 onClick={() => removeExercise(globalIndex)}
                                 className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
                               >
@@ -404,7 +389,7 @@ export function ProgramForm({ exercises, initialData }: ProgramFormProps) {
           className="bg-theme-primary hover:bg-theme-secondary text-white"
         >
           <Save className="h-4 w-4 mr-2" />
-          {isSubmitting ? "Saving..." : initialData ? "Update Program" : "Create Program"}
+          <T>{isSubmitting ? "Saving..." : initialData ? "Update Program" : "Create Program"}</T>
         </Button>
       </div>
     </form>

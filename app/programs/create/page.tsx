@@ -1,3 +1,4 @@
+import { T } from "@/lib/i18n/context"
 import { getSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { redirect } from "next/navigation"
@@ -26,13 +27,11 @@ export default async function CreateProgramPage() {
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:text-white">
                 <Link href="/programs">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Programs
-                </Link>
+                  <ArrowLeft className="h-4 w-4 mr-2" /><T text={"Back to Programs"} /></Link>
               </Button>
               <div className="flex items-center gap-3">
                 <Dumbbell className="h-8 w-8 text-theme-primary" />
-                <h1 className="text-2xl font-bold text-white">Create Program</h1>
+                <h1 className="text-2xl font-bold text-white"><T text={"Create Program"} /></h1>
               </div>
             </div>
             <ThemeToggle />

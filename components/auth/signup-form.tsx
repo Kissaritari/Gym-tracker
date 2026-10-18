@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,6 +14,8 @@ import { Dumbbell, Loader2, ArrowLeft, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SignUpForm() {
+  const { t } = useI18n()
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
@@ -29,8 +34,8 @@ export default function SignUpForm() {
         const errorMessage = result.error || "Failed to create account. Please try again."
         setError(errorMessage)
         toast({
-          title: "Signup Failed",
-          description: errorMessage,
+          title: t("Signup Failed"),
+          description: t(errorMessage),
           variant: "destructive",
         })
       }
@@ -43,7 +48,7 @@ export default function SignUpForm() {
       const errorMessage = "An unexpected error occurred. Please try again."
       setError(errorMessage)
       toast({
-        title: "Signup Failed",
+        title: t("Signup Failed"),
         description: errorMessage,
         variant: "destructive",
       })
@@ -59,59 +64,51 @@ export default function SignUpForm() {
         <div className="flex items-center justify-between mb-4">
           <Link href="/auth/login">
             <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
+              <ArrowLeft className="h-4 w-4 mr-2" /><T text={"Back"} /></Button>
           </Link>
           <div className="flex-1 flex justify-center">
             <Dumbbell className="h-12 w-12 text-theme-primary" />
           </div>
           <div className="w-16" /> {/* Spacer for centering */}
         </div>
-        <CardTitle className="text-2xl font-bold text-white">Join FitTracker</CardTitle>
-        <CardDescription className="text-slate-300">Create your account to start your fitness journey</CardDescription>
+        <CardTitle className="text-2xl font-bold text-white"><T text={"Join FitTracker"} /></CardTitle>
+        <CardDescription className="text-slate-300"><T text={"Create your account to start your fitness journey"} /></CardDescription>
       </CardHeader>
       <CardContent>
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200">
             <AlertCircle className="h-5 w-5 flex-shrink-0" />
-            <span className="text-sm">{error}</span>
+            <span className="text-sm"><T>{error}</T></span>
           </div>
         )}
 
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="fullName" className="text-slate-200">
-              Full name
-            </Label>
+            <Label htmlFor="fullName" className="text-slate-200"><T text={"Full name"} /></Label>
             <Input
               id="fullName"
               name="fullName"
               type="text"
-              placeholder="Your name"
+              placeholder={t("Your name")}
               autoComplete="name"
               disabled={isLoading}
               className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 disabled:opacity-50"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-slate-200">
-              Email
-            </Label>
+            <Label htmlFor="email" className="text-slate-200"><T text={"Email"} /></Label>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="your@email.com"
+              placeholder={t("your@email.com")}
               required
               disabled={isLoading}
               className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 disabled:opacity-50"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-slate-200">
-              Password
-            </Label>
+            <Label htmlFor="password" className="text-slate-200"><T text={"Password"} /></Label>
             <Input
               id="password"
               name="password"
@@ -128,23 +125,16 @@ export default function SignUpForm() {
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /><T text={"Creating account..."} /></>
             ) : (
-              "Create Account"
+              <T text={"Create Account"} />
             )}
           </Button>
         </form>
         <div className="mt-6 flex flex-col items-center gap-3 text-center">
-          <Link href="/" className="text-sm text-slate-400 hover:text-white">
-            Back to home
-          </Link>
-          <p className="text-slate-300">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="text-theme-primary hover:text-theme-secondary font-medium">
-              Sign in
-            </Link>
+          <Link href="/" className="text-sm text-slate-400 hover:text-white"><T text={"Back to home"} /></Link>
+          <p className="text-slate-300"><T text={"Already have an account?"} />{" "}
+            <Link href="/auth/login" className="text-theme-primary hover:text-theme-secondary font-medium"><T text={"Sign in"} /></Link>
           </p>
         </div>
       </CardContent>

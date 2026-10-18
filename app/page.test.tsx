@@ -3,6 +3,7 @@ import { act } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import HomePage from "./page"
+import { LanguageProvider, LanguageSelector } from "@/lib/i18n/context"
 
 const { client, inserts, state } = vi.hoisted(() => ({
   client: { auth: { getUser: vi.fn(), onAuthStateChange: vi.fn() }, from: vi.fn(), rpc: vi.fn() },
@@ -63,6 +64,17 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function tab(name: string) {
   await act(async () => { [...container.querySelectorAll("button")].find((button) => button.textContent === name)!.click() })
 }
+
+it("shows the real dashboard in Finnish and preserves custom program names", async () => {
+  localStorage.setItem("form-one-language", "fi")
+  await act(async () => root.render(<LanguageProvider><LanguageSelector /><HomePage /></LanguageProvider>))
+  expect(container.textContent).toContain("Tee tästä hyvä treenipäivä.")
+  await tab("Ohjelmat")
+  expect(container.textContent).toContain("Valitse seuraava harjoitusjaksosi.")
+  expect(container.textContent).toContain("Aloittelija")
+  expect(container.textContent).toContain("Third")
+  localStorage.removeItem("form-one-language")
+})
 
 async function click(text: string) {
   await act(async () => { [...container.querySelectorAll("button")].find((button) => button.textContent?.includes(text))!.click() })

@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
@@ -23,6 +26,7 @@ interface DeleteProgramButtonProps {
 }
 
 export function DeleteProgramButton({ programId, programName }: DeleteProgramButtonProps) {
+  const { t } = useI18n()
   const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
 
@@ -46,6 +50,7 @@ export function DeleteProgramButton({ programId, programName }: DeleteProgramBut
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button
+          aria-label={t("Delete Program")}
           size="sm"
           variant="outline"
           className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white bg-transparent"
@@ -55,20 +60,17 @@ export function DeleteProgramButton({ programId, programName }: DeleteProgramBut
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-slate-800 border-slate-700">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">Delete Program</AlertDialogTitle>
-          <AlertDialogDescription className="text-slate-300">
-            Are you sure you want to delete "{programName}"? This action cannot be undone and will remove all associated
-            exercises and workout sessions.
-          </AlertDialogDescription>
+          <AlertDialogTitle className="text-white"><T text={"Delete Program"} /></AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-300"><T text={"Are you sure you want to delete \""} />{programName}<T text={"\"? This action cannot be undone and will remove all associated exercises and workout sessions."} /></AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</AlertDialogCancel>
+          <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-700"><T text={"Cancel"} /></AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             disabled={isDeleting}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
-            {isDeleting ? "Deleting..." : "Delete Program"}
+            <T>{isDeleting ? "Deleting..." : "Delete Program"}</T>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
