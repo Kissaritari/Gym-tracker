@@ -31,6 +31,10 @@ Continue building your app on:
 
 ## Local setup and workout data
 
+Run `npm run test:services` for read-only live checks of Supabase authentication, REST API, login/signup CORS, and configured Neon/Groq services. See [service health checks](docs/service-health.md) for environment setup, JSON output, strict mode, and the checks' limits. Normal `npm test` remains offline and deterministic.
+
+Authentication requires `NEXT_PUBLIC_SUPABASE_URL` and either `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (preferred) or `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Set them in `.env.local` for local development and in the hosting environment before building. Restart local development or rebuild/redeploy after changing these public variables. The browser and confirmation callback must use the same Supabase project. Enable the Email provider and account signup in Supabase Auth, and allow your app's `/auth/callback` URL in its redirect settings. Accounts created through the legacy `/auth/login` and `/auth/signup` Neon routes are separate from homepage Supabase accounts.
+
 Install dependencies with `pnpm install --frozen-lockfile`, then run `pnpm dev`. Use the pnpm version pinned in `package.json` (via Corepack, or `npx pnpm@10.34.6`). After changing dependencies, run `pnpm install` and commit both `package.json` and `pnpm-lock.yaml` so Vercel can install with its frozen-lockfile check.
 
 The homepage uses Supabase authentication and saves programs, planned exercises, workout sessions, and exercise logs to Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`. For a new Supabase database, run `scripts/01-create-tables.sql`, `scripts/02-seed-exercises.sql`, and `scripts/04-supabase-workout-integrity.sql`. For an existing Supabase database, run only `scripts/04-supabase-workout-integrity.sql` before deploying this version; it installs permissions, planned-exercise log identities, and the atomic program-creation function. Existing databases do not need reseeding.

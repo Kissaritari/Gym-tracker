@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import HomePage from "./page"
 
 const { client, inserts, state } = vi.hoisted(() => ({
-  client: { auth: { getUser: vi.fn(), onAuthStateChange: vi.fn() }, from: vi.fn(), rpc: vi.fn() },
+  client: { auth: { getUser: vi.fn(), onAuthStateChange: vi.fn(), signInWithPassword: vi.fn(), signUp: vi.fn() }, from: vi.fn(), rpc: vi.fn() },
   inserts: vi.fn(),
   state: { history: [] as any[], plans: [] as any[], failLoad: false, failCreate: false, failLinks: false, denyDelete: false },
 }))
@@ -77,6 +77,50 @@ async function input(selector: string, value: string) {
 async function openProgramForm() { await tab("programs"); await click("Custom program"); await input('[placeholder="My strength block"]', "My plan") }
 async function submitProgram() { await act(async () => { container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })) }) }
 async function reload() { await act(async () => { root.unmount(); root = createRoot(container); root.render(<HomePage />) }) }
+
+describe("homepage authentication", () => {
+  async function openLogin() {
+    client.auth.getUser.mockResolvedValue({ data: { user: null } })
+    await reload()
+    await input('[type="email"]', "test@example.com")
+    await input('[type="password"]', "test-password")
+  }
+  async function submit() {
+    await act(async () => { container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })) })
+  }
+  it("lets a failed network request be retried and opens the account after success", async () => {
+    await openLogin()
+    client.auth.signInWithPassword.mockRejectedValueOnce(new TypeError("Failed to fetch"))
+    await submit()
+    expect(container.textContent).toContain("Check your connection")
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false)
+    client.auth.signInWithPassword.mockResolvedValueOnce({ data: { session: { access_token: "test" }, user: { id: "user", email: "test@example.com" } }, error: null })
+    await submit()
+    expect(container.textContent).toContain("Good to see you back.")
+  })
+  it("explains unconfirmed email instead of claiming the details are wrong", async () => {
+    await openLogin()
+    client.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: { code: "email_not_confirmed" } })
+    await submit()
+    expect(container.textContent).toContain("Confirm your email")
+  })
+  it("creates an account with the confirmation callback and shows the next step", async () => {
+    await openLogin()
+    await click("Need an account?")
+    client.auth.signUp.mockResolvedValueOnce({ data: { session: null }, error: null })
+    await submit()
+    expect(client.auth.signUp).toHaveBeenCalledWith({ email: "test@example.com", password: "test-password", options: { emailRedirectTo: `${window.location.origin}/auth/callback` } })
+    expect(container.textContent).toContain("Check your inbox")
+  })
+  it("unlocks signup after a thrown request", async () => {
+    await openLogin()
+    await click("Need an account?")
+    client.auth.signUp.mockRejectedValueOnce(new TypeError("Failed to fetch"))
+    await submit()
+    expect(container.textContent).toContain("Check your connection")
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false)
+  })
+})
 
 describe("homepage training flow", () => {
   it("starts the third program using its real database identity", async () => {

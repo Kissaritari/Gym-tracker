@@ -3,6 +3,7 @@
 import type React from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { authErrorMessage } from "@/lib/supabase/auth-errors"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -47,7 +48,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!supabase) return
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(({ data }) => setUser(data.user)).catch(() => {
+      setAuthMessage("Could not restore your session. Please sign in again.")
+    })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
     return () => listener.subscription.unsubscribe()
   }, [supabase])
@@ -77,13 +80,25 @@ export default function HomePage() {
   function finishWorkout() { setSelectedProgram(null); void loadTrainingData() }
 
   async function submitAuth(event: React.FormEvent) {
-    event.preventDefault(); if (!supabase) { setAuthMessage("Supabase is not configured. Add the project URL and public key to start using the app."); return }; setAuthLoading(true); setAuthMessage("")
-    const result = authMode === "login"
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback` } })
-    setAuthLoading(false)
-    if (result.error) setAuthMessage("We could not complete that request. Check your details and try again.")
-    else if (authMode === "signup" && !result.data.session) setAuthMessage("Check your inbox to confirm your account, then sign in.")
+    event.preventDefault()
+    if (authLoading) return
+    if (!supabase) {
+      setAuthMessage("Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), then rebuild the app.")
+      return
+    }
+    setAuthLoading(true); setAuthMessage("")
+    try {
+      const result = authMode === "login"
+        ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+        : await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback` } })
+      if (result.error) setAuthMessage(authErrorMessage(result.error))
+      else if (result.data.session) setUser(result.data.user)
+      else if (authMode === "signup") setAuthMessage("Check your inbox to confirm your account, then sign in.")
+    } catch (error) {
+      setAuthMessage(authErrorMessage(error))
+    } finally {
+      setAuthLoading(false)
+    }
   }
 
   async function addProgram(event: React.FormEvent) {

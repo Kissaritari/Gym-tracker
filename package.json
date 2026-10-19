@@ -8,7 +8,8 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:services": "node scripts/check-services.mjs"
   },
   "dependencies": {
     "@ai-sdk/groq": "2.0.31",
