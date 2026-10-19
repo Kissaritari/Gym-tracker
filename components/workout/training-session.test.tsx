@@ -39,12 +39,13 @@ beforeEach(async () => {
   ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
   from.mockImplementation((table: string) => {
     let operation = "read"
+    let selection = "*"
     let payload: any
     const filters: Array<[string, unknown]> = []
     let single = false
     let limit = Infinity
     const query: any = {}
-    query.select = () => query
+    query.select = (columns: string) => { selection = columns; return query }
     query.eq = (field: string, value: unknown) => { filters.push([field, value]); return query }
     query.is = query.eq
     query.order = () => query
@@ -69,7 +70,7 @@ beforeEach(async () => {
         result = { data: current || null, error: state.failFinish || !current ? { message: "Failed" } : null }
       } else if (table === "exercise_logs") {
         const data = state.logs.map((log) => ({ session_id: "session", ...log })).filter(matches)
-        result = { data, error: state.failProgress ? { message: "Failed" } : null }
+        result = { data, error: state.failProgress ? { message: "Failed" } : selection.includes("workout_plan_exercise_id") ? { code: "42703", message: "column does not exist" } : null }
       } else {
         const sessions = state.resume ? [{ id: "session", user_id: "user", workout_plan_id: program.id, completed_at: null, notes: "Day 1", started_at: "2026-10-04T08:00:00Z" }, ...state.sessions] : state.sessions
         const data = sessions.filter(matches).slice(0, limit)
@@ -260,3 +261,19 @@ describe("workout interaction", () => {
     expect([...container.querySelectorAll("button")].some((item) => item.textContent?.includes("Start day"))).toBe(false)
   })
 })
+
+ it("starts with legacy logs that have no planned-exercise identity column", async () => {
+    state.resume = true
+    state.logs = [{ exercise_id: "exercise-0", reps_completed: [8], weight_used: [20] }]
+    await render(); await click("Start day 1 workout")
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(container.textContent).toContain("1/4 exercises completed")
+    expect(button("Finish workout")).toBeDefined()
+  })
+
+ it("ignores planned rows whose exercises are unavailable", async () => {
+    state.rows = [{ ...rows[0], exercise: null }]
+    await render()
+    expect(container.textContent).toContain("no exercises yet")
+    expect(inserts).not.toHaveBeenCalled()
+  })

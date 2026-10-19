@@ -19,7 +19,8 @@ export default async function DashboardPage() {
   // Fetch workout plans using Neon SQL
   const workoutPlans = await sql`
     SELECT *, difficulty_level AS difficulty FROM workout_plans
-    WHERE is_public = true OR created_by = ${user.id}
+    WHERE (is_public = true OR created_by = ${user.id})
+      AND EXISTS (SELECT 1 FROM workout_plan_exercises wpe JOIN exercises e ON e.id = wpe.exercise_id WHERE wpe.workout_plan_id = workout_plans.id)
     ORDER BY difficulty_level, name
   `
 

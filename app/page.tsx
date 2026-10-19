@@ -61,12 +61,12 @@ export default function HomePage() {
     setDataLoading(true); setDataError(null)
     try {
       const [plans, history, catalog] = await Promise.all([
-        supabase.from("workout_plans").select("id, name, description, difficulty_level, duration_weeks, is_public").or(`is_public.eq.true,created_by.eq.${userId}`).order("created_at", { ascending: false }),
+        supabase.from("workout_plans").select("id, name, description, difficulty_level, duration_weeks, is_public, workout_plan_exercises(exercise:exercises(id))").or(`is_public.eq.true,created_by.eq.${userId}`).order("created_at", { ascending: false }),
         supabase.from("workout_sessions").select("id, workout_plan_id, started_at, completed_at, notes").eq("user_id", userId).order("started_at", { ascending: false }),
         supabase.from("exercises").select("id, name").order("name"),
       ])
       if (plans.error || history.error || catalog.error) throw plans.error || history.error || catalog.error
-      setPrograms(plans.data || []); setSessionHistory(history.data || []); setExerciseCatalog(catalog.data || [])
+      setPrograms((plans.data || []).filter((plan) => plan.workout_plan_exercises.some((item) => item.exercise))); setSessionHistory(history.data || []); setExerciseCatalog(catalog.data || [])
     } catch { setDataError("Could not load your training data. Please retry.") }
     finally { setDataLoading(false) }
   }, [supabase, userId])

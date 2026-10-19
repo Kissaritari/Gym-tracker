@@ -23,7 +23,8 @@ export default async function ProgramsPage() {
       (SELECT COUNT(*) FROM workout_plan_exercises wpe WHERE wpe.workout_plan_id = wp.id) as exercise_count,
       (SELECT COUNT(DISTINCT day_number) FROM workout_plan_exercises wpe WHERE wpe.workout_plan_id = wp.id) as day_count
     FROM workout_plans wp
-    WHERE wp.is_public = true OR wp.created_by = ${user.id}
+    WHERE (wp.is_public = true OR wp.created_by = ${user.id})
+      AND EXISTS (SELECT 1 FROM workout_plan_exercises wpe JOIN exercises e ON e.id = wpe.exercise_id WHERE wpe.workout_plan_id = wp.id)
     ORDER BY wp.created_at DESC
   `
 

@@ -12,7 +12,7 @@ const { client, inserts, state } = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => client }))
 vi.mock("@/lib/generate-training-program", () => ({ generateTrainingProgram: vi.fn() }))
 vi.mock("@/components/workout/training-session", () => ({ TrainingSession: ({ program, initialDay, initialSessionId }: any) => <div data-testid="workout" data-day={initialDay} data-session-id={initialSessionId}>{program.id}: {program.name}</div> }))
-const programs = ["First", "Second", "Third"].map((name, i) => ({ id: `real-database-id-${i}`, name, description: "Workout", difficulty_level: "beginner", duration_weeks: 4 }))
+const programs = ["First", "Second", "Third"].map((name, i) => ({ id: `real-database-id-${i}`, name, description: "Workout", difficulty_level: "beginner", duration_weeks: 4, workout_plan_exercises: [{ exercise: { id: "squat" } }] }))
 let container: HTMLDivElement
 let root: Root
 
@@ -24,7 +24,7 @@ beforeEach(async () => {
   state.plans = [...programs]; state.failLoad = false; state.failCreate = false; state.failLinks = false; state.denyDelete = false
   client.rpc.mockImplementation((_name: string, args: any) => ({ single: async () => {
     if (state.failCreate || state.failLinks) return { data: null, error: { message: "Failed" } }
-    const plan = { id: "generated-plan-id", name: args.p_name, description: args.p_description, difficulty_level: "beginner", duration_weeks: 4, created_by: "user" }
+    const plan = { id: "generated-plan-id", name: args.p_name, description: args.p_description, difficulty_level: "beginner", duration_weeks: 4, created_by: "user", workout_plan_exercises: [{ exercise: { id: "squat" } }] }
     state.plans.push(plan)
     return { data: plan, error: null }
   } }))
@@ -207,3 +207,11 @@ describe("homepage training flow", () => {
   })
 
 })
+
+ it("hides empty programs and programs without accessible exercises", async () => {
+    state.plans = [...programs, { ...programs[0], id: "empty", name: "Empty program", workout_plan_exercises: [] }, { ...programs[0], id: "missing", name: "Missing exercise", workout_plan_exercises: [{ exercise: null }] }]
+    await reload(); await tab("programs")
+    expect(container.textContent).toContain("Third")
+    expect(container.textContent).not.toContain("Empty program")
+    expect(container.textContent).not.toContain("Missing exercise")
+  })

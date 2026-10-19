@@ -49,7 +49,7 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
         const result = await client.from("workout_plan_exercises").select("id, exercise_id, day_number, sets, reps, rest_seconds, exercise:exercises(name, instructions)").eq("workout_plan_id", program.id).order("day_number").order("order_in_day")
         if (result.error) throw result.error
         if (cancelled) return
-        const rows = (result.data || []) as unknown as PlannedExercise[]
+        const rows = ((result.data || []) as unknown as PlannedExercise[]).filter((item) => item.exercise)
         setExercises(rows)
         setDay(rows.some((item) => item.day_number === initialDay) ? initialDay! : rows[0]?.day_number || 1)
       } catch {
@@ -80,7 +80,9 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
       const savedDay = Number(current.notes?.match(/^Day (\d+)(?:\b|:)/)?.[1])
       if (!days.includes(savedDay)) throw new Error("The session's workout day is unavailable")
       const sessionExercises = exercises.filter((item) => item.day_number === savedDay)
-      const logs = await client.from("exercise_logs").select("exercise_id, workout_plan_exercise_id, reps_completed, weight_used").eq("session_id", current.id)
+      // Older databases lack workout_plan_exercise_id; read available columns and
+      // use the unambiguous legacy exercise match below when it is absent.
+      const logs = await client.from("exercise_logs").select("*").eq("session_id", current.id)
       if (logs.error) throw logs.error
       const done = new Set<string>()
       const saved: Record<string, SetEntry[]> = {}
