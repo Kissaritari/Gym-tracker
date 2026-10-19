@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -13,6 +16,8 @@ type PlannedExercise = { id: string; exercise_id: string; day_number: number; se
 type SetEntry = { reps: number; weight: number }
 
 export function TrainingSession({ program, userId, onFinish, onBack, initialDay, initialSessionId }: { program: TrainingProgram; userId: string; onFinish: () => void; onBack: () => void; initialDay?: number; initialSessionId?: string }) {
+  const { t } = useI18n()
+
   const client = useMemo(() => createClient(), [])
   const [exercises, setExercises] = useState<PlannedExercise[]>([])
   const [day, setDay] = useState(1)
@@ -145,27 +150,27 @@ export function TrainingSession({ program, userId, onFinish, onBack, initialDay,
   }
 
   return <section className="rounded-2xl border bg-card p-6" aria-busy={loading || pending}>
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-xs uppercase tracking-widest text-primary">{session ? `Day ${day} workout` : "Choose your workout day"}</p><h2 className="mt-2 text-2xl font-semibold">{program.name}</h2></div><Badge>{session ? "In progress" : "Ready to start"}</Badge></div>
-    {error && <p role="alert" className="mt-4 rounded-lg border border-destructive/50 p-3 text-sm">{error}</p>}
-    {draftStorageFailed && hasUnsavedSets && <p role="alert">Your browser could not keep a draft. Complete your exercise before leaving this workout.</p>}
-    {loading ? <p className="mt-6 text-muted-foreground">Loading exercises...</p> : !exercises.length ? <p className="mt-6 text-muted-foreground">This program has no exercises yet. Choose a program with exercises to start a workout.</p> : <>
-      <div className="my-6 flex flex-wrap gap-2" aria-label="Workout days">{days.map((value) => <Button key={value} variant={day === value ? "default" : "outline"} disabled={!!initialSessionId || !!session || pending} onClick={() => { setDay(value); setSelected(null) }}>Day {value}</Button>)}</div>
-      {session && <p className="mb-4 text-sm text-muted-foreground">{completed.size}/{today.length} exercises completed</p>}
+    <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-xs uppercase tracking-widest text-primary"><T>{session ? t("Day {day} workout", { day }) : "Choose your workout day"}</T></p><h2 className="mt-2 text-2xl font-semibold">{program.name}</h2></div><Badge><T>{session ? "In progress" : "Ready to start"}</T></Badge></div>
+    {error && <p role="alert" className="mt-4 rounded-lg border border-destructive/50 p-3 text-sm"><T>{error}</T></p>}
+    {draftStorageFailed && hasUnsavedSets && <p role="alert"><T text={"Your browser could not keep a draft. Complete your exercise before leaving this workout."} /></p>}
+    {loading ? <p className="mt-6 text-muted-foreground"><T text={"Loading exercises..."} /></p> : !exercises.length ? <p className="mt-6 text-muted-foreground"><T text={"This program has no exercises yet. Choose a program with exercises to start a workout."} /></p> : <>
+      <div className="my-6 flex flex-wrap gap-2" aria-label={t("Workout days")}>{days.map((value) => <Button key={value} variant={day === value ? "default" : "outline"} disabled={!!initialSessionId || !!session || pending} onClick={() => { setDay(value); setSelected(null) }}><T text={"Day "} />{value}</Button>)}</div>
+      {session && <p className="mb-4 text-sm text-muted-foreground">{completed.size}/{today.length}<T text={" exercises completed"} /></p>}
       <div className="flex flex-col gap-3">{today.map((item, index) => <div key={item.id}>
         <button type="button" disabled={!session || pending} onClick={() => select(item)} aria-expanded={selected === item.id} className={`flex w-full items-center justify-between rounded-xl border p-4 text-left disabled:opacity-60 ${selected === item.id || completed.has(item.id) ? "border-primary bg-primary/10" : "hover:bg-muted"}`}>
-          <span className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full border text-xs">{completed.has(item.id) ? <Check className="size-4" /> : index + 1}</span><span><span className="block font-medium">{item.exercise.name}</span><span className="text-xs text-muted-foreground">{item.sets} sets | {item.reps} reps | {item.rest_seconds}s rest</span></span></span><ChevronRight className="size-4" />
+          <span className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full border text-xs">{completed.has(item.id) ? <Check className="size-4" /> : index + 1}</span><span><span className="block font-medium">{item.exercise.name}</span><span className="text-xs text-muted-foreground">{item.sets}<T text={" sets | "} />{item.reps}<T text={" reps | "} />{item.rest_seconds}<T text={"s rest"} /></span></span></span><ChevronRight className="size-4" />
         </button>
         {selected === item.id && <div className="mt-2 rounded-xl border p-4">
           {item.exercise.instructions && <p className="mb-4 text-sm text-muted-foreground">{item.exercise.instructions}</p>}
-          {(drafts[item.id] || []).map((entry, i) => <div key={i} className="mb-3 grid grid-cols-[auto_1fr_1fr] items-end gap-3"><span className="pb-2 text-sm">Set {i + 1}</span><label className="text-xs">Reps<Input aria-label={`${item.exercise.name} set ${i + 1} reps`} type="number" min="0" step="1" disabled={pending || completed.has(item.id)} value={entry.reps || ""} onChange={(e) => update(i, "reps", e.target.value)} /></label><label className="text-xs">Weight<Input aria-label={`${item.exercise.name} set ${i + 1} weight`} type="number" min="0" step="0.5" disabled={pending || completed.has(item.id)} value={entry.weight || ""} onChange={(e) => update(i, "weight", e.target.value)} /></label></div>)}
-          {completed.has(item.id) ? <p className="text-sm text-primary">Exercise completed</p> : <Button onClick={saveExercise} disabled={pending}>{pending ? "Saving..." : "Complete exercise"}</Button>}
+          {(drafts[item.id] || []).map((entry, i) => <div key={i} className="mb-3 grid grid-cols-[auto_1fr_1fr] items-end gap-3"><span className="pb-2 text-sm"><T text={"Set "} />{i + 1}</span><label className="text-xs"><T text={"Reps"} /><Input aria-label={t("{exercise} set {set} reps", { exercise: item.exercise.name, set: i + 1 })} type="number" min="0" step="1" disabled={pending || completed.has(item.id)} value={entry.reps || ""} onChange={(e) => update(i, "reps", e.target.value)} /></label><label className="text-xs"><T text={"Weight"} /><Input aria-label={t("{exercise} set {set} weight", { exercise: item.exercise.name, set: i + 1 })} type="number" min="0" step="0.5" disabled={pending || completed.has(item.id)} value={entry.weight || ""} onChange={(e) => update(i, "weight", e.target.value)} /></label></div>)}
+          {completed.has(item.id) ? <p className="text-sm text-primary"><T text={"Exercise completed"} /></p> : <Button onClick={saveExercise} disabled={pending}><T>{pending ? "Saving..." : "Complete exercise"}</T></Button>}
         </div>}
       </div>)}</div>
-      <Button className="mt-6 w-full" disabled={pending} onClick={session ? finish : start}>{pending ? "Saving..." : session ? "Finish workout" : `Start day ${day} workout`}</Button>
+      <Button className="mt-6 w-full" disabled={pending} onClick={session ? finish : start}><T>{pending ? "Saving..." : session ? "Finish workout" : t("Start day {day} workout", { day })}</T></Button>
     </>}
     <Button variant="ghost" className="mt-4" disabled={pending} onClick={() => {
-      if (hasUnsavedSets && draftStorageFailed && !window.confirm("Your entered sets could not be kept. Leave and discard them?")) return
+      if (hasUnsavedSets && draftStorageFailed && !window.confirm(t("Your entered sets could not be kept. Leave and discard them?"))) return
       onBack()
-    }}>{"Back to programs"}</Button>
+    }}><T>{"Back to programs"}</T></Button>
   </section>
 }

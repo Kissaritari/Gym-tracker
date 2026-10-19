@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n } from "@/lib/i18n/context"
+
+
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,6 +14,8 @@ import { Dumbbell, Loader2, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function LoginForm() {
+  const { t } = useI18n()
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
@@ -29,8 +34,8 @@ export default function LoginForm() {
         const errorMessage = result.error || "Invalid email or password. Please try again."
         setError(errorMessage)
         toast({
-          title: "Login Failed",
-          description: errorMessage,
+          title: t("Login Failed"),
+          description: t(errorMessage),
           variant: "destructive",
         })
       }
@@ -43,7 +48,7 @@ export default function LoginForm() {
       const errorMessage = "An unexpected error occurred. Please try again."
       setError(errorMessage)
       toast({
-        title: "Login Failed",
+        title: t("Login Failed"),
         description: errorMessage,
         variant: "destructive",
       })
@@ -59,36 +64,32 @@ export default function LoginForm() {
         <div className="flex justify-center mb-4">
           <Dumbbell className="h-12 w-12 text-theme-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold text-white">Welcome Back</CardTitle>
-        <CardDescription className="text-slate-300">Sign in to continue your fitness journey</CardDescription>
+        <CardTitle className="text-2xl font-bold text-white"><T text={"Welcome Back"} /></CardTitle>
+        <CardDescription className="text-slate-300"><T text={"Sign in to continue your fitness journey"} /></CardDescription>
       </CardHeader>
       <CardContent>
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200">
             <AlertCircle className="h-5 w-5 flex-shrink-0" />
-            <span className="text-sm">{error}</span>
+            <span className="text-sm"><T>{error}</T></span>
           </div>
         )}
 
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-slate-200">
-              Email
-            </Label>
+            <Label htmlFor="email" className="text-slate-200"><T text={"Email"} /></Label>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="your@email.com"
+              placeholder={t("your@email.com")}
               required
               disabled={isLoading}
               className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 disabled:opacity-50"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-slate-200">
-              Password
-            </Label>
+            <Label htmlFor="password" className="text-slate-200"><T text={"Password"} /></Label>
             <Input
               id="password"
               name="password"
@@ -105,23 +106,16 @@ export default function LoginForm() {
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
-              </>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /><T text={"Signing in..."} /></>
             ) : (
-              "Sign In"
+              <T text={"Sign In"} />
             )}
           </Button>
         </form>
         <div className="mt-6 flex flex-col items-center gap-3 text-center">
-          <Link href="/" className="text-sm text-slate-400 hover:text-white">
-            Back to home
-          </Link>
-          <p className="text-slate-300">
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-theme-primary hover:text-theme-secondary font-medium">
-              Sign up
-            </Link>
+          <Link href="/" className="text-sm text-slate-400 hover:text-white"><T text={"Back to home"} /></Link>
+          <p className="text-slate-300"><T text={"Don't have an account?"} />{" "}
+            <Link href="/auth/signup" className="text-theme-primary hover:text-theme-secondary font-medium"><T text={"Sign up"} /></Link>
           </p>
         </div>
       </CardContent>

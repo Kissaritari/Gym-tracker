@@ -1,3 +1,4 @@
+import { T, LocalDate } from "@/lib/i18n/context"
 import { getSession } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { redirect } from "next/navigation"
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
               >
                 <Link href="/sessions">
                   <Clock className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden xs:inline">Sessions</span>
+                  <span className="hidden xs:inline"><T text={"Sessions"} /></span>
                   <span className="xs:hidden">S</span>
                 </Link>
               </Button>
@@ -78,13 +79,13 @@ export default async function DashboardPage() {
               >
                 <Link href="/programs">
                   <Dumbbell className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden xs:inline">Programs</span>
+                  <span className="hidden xs:inline"><T text={"Programs"} /></span>
                   <span className="xs:hidden">P</span>
                 </Link>
               </Button>
               <ThemeToggle />
-              <span className="text-slate-300 text-xs sm:text-sm hidden md:block">Welcome, {user.email}</span>
-              <span className="text-slate-300 text-xs sm:text-sm md:hidden">Hi!</span>
+              <span className="text-slate-300 text-xs sm:text-sm hidden md:block"><T text={"Welcome, "} />{user.email}</span>
+              <span className="text-slate-300 text-xs sm:text-sm md:hidden"><T text={"Hi!"} /></span>
               <form action={signOut}>
                 <Button
                   variant="outline"
@@ -92,8 +93,8 @@ export default async function DashboardPage() {
                   className="border-slate-600 text-slate-200 hover:bg-slate-700 bg-transparent text-xs sm:text-sm"
                 >
                   <LogOut className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden xs:inline">Sign Out</span>
-                  <span className="xs:hidden">Out</span>
+                  <span className="hidden xs:inline"><T text={"Sign Out"} /></span>
+                  <span className="xs:hidden"><T text={"Out"} /></span>
                 </Button>
               </form>
             </div>
@@ -105,7 +106,7 @@ export default async function DashboardPage() {
         {/* Workout Plans */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           <div className="lg:col-span-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Available Workout Plans</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6"><T text={"Available Workout Plans"} /></h2>
             <div className="grid gap-4 sm:gap-6">
               {workoutPlans?.map((plan: any) => (
                 <Card key={plan.id} className="bg-slate-800/50 border-slate-700">
@@ -118,7 +119,7 @@ export default async function DashboardPage() {
                         </CardDescription>
                       </div>
                       <Badge className={`${getDifficultyColor(plan.difficulty)} text-white flex-shrink-0`}>
-                        {plan.difficulty}
+                        <T>{plan.difficulty}</T>
                       </Badge>
                     </div>
                   </CardHeader>
@@ -127,14 +128,12 @@ export default async function DashboardPage() {
                       <div className="flex items-center gap-4 text-slate-300">
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          <span className="text-sm sm:text-base">{plan.duration_weeks} weeks</span>
+                          <span className="text-sm sm:text-base">{plan.duration_weeks}<T text={" weeks"} /></span>
                         </div>
                       </div>
                       <Button asChild className="bg-theme-primary hover:bg-theme-secondary text-white w-full sm:w-auto">
                         <Link href={`/workout/${plan.id}`}>
-                          <Play className="h-4 w-4 mr-2" />
-                          Start Workout
-                        </Link>
+                          <Play className="h-4 w-4 mr-2" /><T text={"Start Workout"} /></Link>
                       </Button>
                     </div>
                   </CardContent>
@@ -145,7 +144,7 @@ export default async function DashboardPage() {
 
           {/* Recent Activity */}
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Recent Activity</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6"><T text={"Recent Activity"} /></h2>
             <div className="space-y-4">
               {recentSessions?.length ? (
                 recentSessions.map((session: any) => (
@@ -156,17 +155,15 @@ export default async function DashboardPage() {
                           {session.plan_name}
                         </h3>
                         <Badge className={`${getDifficultyColor(session.difficulty)} text-white text-xs flex-shrink-0`}>
-                          {session.difficulty}
+                          <T>{session.difficulty}</T>
                         </Badge>
                       </div>
                       <p className="text-xs sm:text-sm text-slate-300">
-                        {new Date(session.started_at).toLocaleDateString()}
+                        <LocalDate value={session.started_at} dateOnly />
                       </p>
                       {session.completed_at && (
                         <div className="flex items-center gap-1 mt-2 text-green-400 text-xs sm:text-sm">
-                          <Target className="h-3 w-3" />
-                          Completed
-                        </div>
+                          <Target className="h-3 w-3" /><T text={"Completed"} /></div>
                       )}
                     </CardContent>
                   </Card>
@@ -175,10 +172,8 @@ export default async function DashboardPage() {
                 <Card className="bg-slate-800/50 border-slate-700">
                   <CardContent className="p-4 sm:p-6 text-center">
                     <Target className="h-8 sm:h-12 w-8 sm:w-12 text-slate-500 mx-auto mb-3 sm:mb-4" />
-                    <p className="text-slate-300 text-sm sm:text-base">No workouts yet</p>
-                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                      Start your first workout to see your progress here
-                    </p>
+                    <p className="text-slate-300 text-sm sm:text-base"><T text={"No workouts yet"} /></p>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1"><T text={"Start your first workout to see your progress here"} /></p>
                   </CardContent>
                 </Card>
               )}

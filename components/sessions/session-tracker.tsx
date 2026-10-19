@@ -1,5 +1,8 @@
 "use client"
 
+import { T, useI18n, SessionNote } from "@/lib/i18n/context"
+
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, CheckCircle, Clock, Calendar, TrendingUp, Activity, Target, Timer, BarChart3 } from "lucide-react"
 import Link from "next/link"
 import { fetchSessions, fetchSessionStats } from "@/lib/actions"
-import { formatDistanceToNow, format } from "date-fns"
+import { formatDistanceToNow } from "date-fns"
+import { fi, enGB } from "date-fns/locale"
 
 interface SessionTrackerProps {
   userId: string
@@ -25,6 +29,7 @@ interface SessionStats {
 }
 
 export function SessionTracker({ userId }: SessionTrackerProps) {
+  const { locale, languageTag } = useI18n()
   const [activeSessions, setActiveSessions] = useState<any[]>([])
   const [recentSessions, setRecentSessions] = useState<any[]>([])
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
@@ -78,9 +83,9 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
     const remainingMinutes = minutes % 60
 
     if (hours > 0) {
-      return `${hours}h ${remainingMinutes}m`
+      return `${hours} ${locale === "fi" ? "t" : "h"} ${remainingMinutes} min`
     }
-    return `${remainingMinutes}m`
+    return `${remainingMinutes} min`
   }
 
   const getSessionDuration = (session: any) => {
@@ -103,12 +108,12 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
   }
 
   if (loading) {
-    return <div>Loading session data...</div>
+    return <div><T text={"Loading session data..."} /></div>
   }
 
   return (
     <div className="space-y-6">
-      {error && <Card className="border-red-500/40 bg-red-500/10"><CardContent className="p-4 text-sm text-red-200" role="alert">{error}</CardContent></Card>}
+      {error && <Card className="border-red-500/40 bg-red-500/10"><CardContent className="p-4 text-sm text-red-200" role="alert"><T>{error}</T></CardContent></Card>}
       {/* Stats Overview */}
       {sessionStats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -116,7 +121,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Sessions</p>
+                  <p className="text-sm text-muted-foreground"><T text={"Total Sessions"} /></p>
                   <p className="text-2xl font-bold text-theme-primary">{sessionStats.totalSessions}</p>
                 </div>
                 <Activity className="h-8 w-8 text-theme-primary" />
@@ -128,7 +133,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-sm text-muted-foreground"><T text={"Completed"} /></p>
                   <p className="text-2xl font-bold text-theme-primary">{sessionStats.completedSessions}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-theme-primary" />
@@ -140,7 +145,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Streak</p>
+                  <p className="text-sm text-muted-foreground"><T text={"Current Streak"} /></p>
                   <p className="text-2xl font-bold text-theme-primary">{sessionStats.currentStreak}</p>
                 </div>
                 <Target className="h-8 w-8 text-theme-primary" />
@@ -152,7 +157,7 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">This Week</p>
+                  <p className="text-sm text-muted-foreground"><T text={"This Week"} /></p>
                   <p className="text-2xl font-bold text-theme-primary">{sessionStats.thisWeekSessions}</p>
                 </div>
                 <Calendar className="h-8 w-8 text-theme-primary" />
@@ -164,9 +169,9 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
 
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active">Active Sessions</TabsTrigger>
-          <TabsTrigger value="recent">Recent Sessions</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="active"><T text={"Active Sessions"} /></TabsTrigger>
+          <TabsTrigger value="recent"><T text={"Recent Sessions"} /></TabsTrigger>
+          <TabsTrigger value="analytics"><T text={"Analytics"} /></TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -174,13 +179,11 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
             <Card>
               <CardContent className="p-8 text-center">
                 <Timer className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Active Sessions</h3>
-                <p className="text-muted-foreground mb-4">Start a new workout to begin tracking your session.</p>
+                <h3 className="text-lg font-semibold mb-2"><T text={"No Active Sessions"} /></h3>
+                <p className="text-muted-foreground mb-4"><T text={"Start a new workout to begin tracking your session."} /></p>
                 <Button asChild className="bg-theme-primary hover:bg-theme-primary/90">
                   <Link href="/dashboard">
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Workout
-                  </Link>
+                    <Play className="mr-2 h-4 w-4" /><T text={"Start Workout"} /></Link>
                 </Button>
               </CardContent>
             </Card>
@@ -193,10 +196,10 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                       <CardTitle className="flex items-center gap-2">
                         {session.plan_name}
                         <Badge className={`${getDifficultyColor(session.difficulty)} text-white text-xs`}>
-                          {session.difficulty}
+                          <T>{session.difficulty}</T>
                         </Badge>
                       </CardTitle>
-                      <CardDescription>Started {formatDistanceToNow(new Date(session.started_at))} ago</CardDescription>
+                      <CardDescription><T text={"Started "} />{formatDistanceToNow(new Date(session.started_at), { locale: locale === "fi" ? fi : enGB })}<T text={" ago"} /></CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-theme-primary border-theme-primary">
@@ -208,16 +211,14 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                         size="sm"
                         className="bg-theme-primary hover:bg-theme-primary/90"
                       >
-                        <Play className="mr-2 h-4 w-4" />
-                        Resume
-                      </Button>
+                        <Play className="mr-2 h-4 w-4" /><T text={"Resume"} /></Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Exercises completed: {(session.exercise_logs || []).length}</span>
-                    <span>Session ID: {session.id.slice(0, 8)}...</span>
+                        <span><T text={"Exercises completed: "} />{(session.exercise_logs || []).length}</span>
+                    <span><T text={"Session ID: "} />{session.id.slice(0, 8)}...</span>
                   </div>
                 </CardContent>
               </Card>
@@ -230,8 +231,8 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
             <Card>
               <CardContent className="p-8 text-center">
                 <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Recent Sessions</h3>
-                <p className="text-muted-foreground">Complete your first workout to see session history here.</p>
+                <h3 className="text-lg font-semibold mb-2"><T text={"No Recent Sessions"} /></h3>
+                <p className="text-muted-foreground"><T text={"Complete your first workout to see session history here."} /></p>
               </CardContent>
             </Card>
           ) : (
@@ -243,15 +244,14 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                       <CardTitle className="flex items-center gap-2">
                         {session.plan_name}
                         <Badge className={`${getDifficultyColor(session.difficulty)} text-white text-xs`}>
-                          {session.difficulty}
+                          <T>{session.difficulty}</T>
                         </Badge>
                       </CardTitle>
-                      <CardDescription>
-                        Completed on {format(new Date(session.completed_at!), "MMM d, yyyy 'at' h:mm a")}
+                      <CardDescription><T text={"Completed on "} /><T>{new Intl.DateTimeFormat(languageTag, { dateStyle: "medium", timeStyle: "short" }).format(new Date(session.completed_at!))}</T>
                       </CardDescription>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-muted-foreground">Duration</div>
+                      <div className="text-sm text-muted-foreground"><T text={"Duration"} /></div>
                       <div className="text-lg font-semibold text-theme-primary">
                         {formatDuration(getSessionDuration(session))}
                       </div>
@@ -261,17 +261,17 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Exercises:</span>
+                      <span className="text-muted-foreground"><T text={"Exercises:"} /></span>
                       <span className="ml-2 font-medium">{session.exercise_logs.length}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Total Sets:</span>
+                      <span className="text-muted-foreground"><T text={"Total Sets:"} /></span>
                       <span className="ml-2 font-medium">
                         {(session.exercise_logs || []).reduce((total: number, log: { sets_completed?: number }) => total + (log.sets_completed || 0), 0)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Total Reps:</span>
+                      <span className="text-muted-foreground"><T text={"Total Reps:"} /></span>
                       <span className="ml-2 font-medium">
                         {(session.exercise_logs || []).reduce(
                           (total: number, log: { reps_completed?: number[] }) => total + (log.reps_completed?.reduce((sum: number, reps: number) => sum + reps, 0) || 0),
@@ -280,16 +280,14 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Status:</span>
+                      <span className="text-muted-foreground"><T text={"Status:"} /></span>
                       <Badge variant="outline" className="ml-2 text-green-600 border-green-600">
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Complete
-                      </Badge>
+                        <CheckCircle className="mr-1 h-3 w-3" /><T text={"Complete"} /></Badge>
                     </div>
                   </div>
                   {session.notes && (
                     <div className="mt-4 p-3 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Notes: {session.notes}</p>
+                      <p className="text-sm text-muted-foreground"><T text={"Notes: "} /><SessionNote value={session.notes} /></p>
                     </div>
                   )}
                 </CardContent>
@@ -304,17 +302,15 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-theme-primary" />
-                    Workout Analytics
-                  </CardTitle>
+                    <TrendingUp className="h-5 w-5 text-theme-primary" /><T text={"Workout Analytics"} /></CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h4 className="font-semibold mb-3">Completion Rate</h4>
+                      <h4 className="font-semibold mb-3"><T text={"Completion Rate"} /></h4>
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span>Completed Sessions</span>
+                          <span><T text={"Completed Sessions"} /></span>
                           <span>
                             {sessionStats.completedSessions}/{sessionStats.totalSessions}
                           </span>
@@ -330,36 +326,32 @@ export function SessionTracker({ userId }: SessionTrackerProps) {
                         <p className="text-xs text-muted-foreground">
                           {sessionStats.totalSessions > 0
                             ? Math.round((sessionStats.completedSessions / sessionStats.totalSessions) * 100)
-                            : 0}
-                          % completion rate
-                        </p>
+                            : 0}<T text={"% completion rate"} /></p>
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold mb-3">Average Session Time</h4>
+                      <h4 className="font-semibold mb-3"><T text={"Average Session Time"} /></h4>
                       <div className="text-3xl font-bold text-theme-primary mb-2">
                         {formatDuration(sessionStats.averageSessionTime)}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Based on {sessionStats.completedSessions} completed sessions
-                      </p>
+                      <p className="text-sm text-muted-foreground"><T text={"Based on "} />{sessionStats.completedSessions}<T text={" completed sessions"} /></p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h4 className="font-semibold mb-3">Total Workout Time</h4>
+                      <h4 className="font-semibold mb-3"><T text={"Total Workout Time"} /></h4>
                       <div className="text-3xl font-bold text-theme-primary mb-2">
                         {formatDuration(sessionStats.totalWorkoutTime)}
                       </div>
-                      <p className="text-sm text-muted-foreground">Time spent working out</p>
+                      <p className="text-sm text-muted-foreground"><T text={"Time spent working out"} /></p>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold mb-3">Weekly Activity</h4>
+                      <h4 className="font-semibold mb-3"><T text={"Weekly Activity"} /></h4>
                       <div className="text-3xl font-bold text-theme-primary mb-2">{sessionStats.thisWeekSessions}</div>
-                      <p className="text-sm text-muted-foreground">Sessions this week</p>
+                      <p className="text-sm text-muted-foreground"><T text={"Sessions this week"} /></p>
                     </div>
                   </div>
                 </CardContent>
